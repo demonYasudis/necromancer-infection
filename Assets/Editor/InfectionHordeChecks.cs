@@ -55,7 +55,7 @@ namespace NecromancerInfection.Editor
             {
                 routine = Checks();
                 resumeAt = EditorApplication.timeSinceStartup + 0.5;
-                deadline = EditorApplication.timeSinceStartup + 60;
+                deadline = EditorApplication.timeSinceStartup + 150;
                 Application.logMessageReceived += WatchErrors;
             }
             if (EditorApplication.timeSinceStartup < resumeAt) return;
@@ -66,7 +66,7 @@ namespace NecromancerInfection.Editor
                 if (routine.MoveNext())
                     resumeAt = EditorApplication.timeSinceStartup + (float)routine.Current;
                 else
-                    Finish(true, "All prototype integration checks passed (infection, horde, combat, guards).");
+                    Finish(true, "All prototype integration checks passed (infection, horde, combat, guards, dark energy, protection, defeat/retry, farm, final assault).");
             }
             catch (Exception exception)
             {
@@ -81,6 +81,9 @@ namespace NecromancerInfection.Editor
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(InfectionSetup.PrefabPath).GetComponent<Zombie>();
             Require(manager && ability && prefab, "Scene references and prefabs must exist.");
             var leader = manager.Necromancer;
+            Require(leader.Energy && leader.Energy.Current == 100 && leader.Energy.Maximum == 100
+                && ability.InfectionCost == 15 && ability.GetComponent<DarkEnergyHUD>(),
+                "DemoLevel must start at 100/100 energy with infection cost 15 and a HUD.");
             foreach (var defender in Object.FindObjectsByType<Guard>(FindObjectsSortMode.None))
                 defender.gameObject.SetActive(false);
             leader.enabled = false;
@@ -180,6 +183,16 @@ namespace NecromancerInfection.Editor
             while (combatChecks.MoveNext()) yield return combatChecks.Current;
             var guardChecks = GuardChecks.Checks(leader, prefab);
             while (guardChecks.MoveNext()) yield return guardChecks.Current;
+            var energyChecks = DarkEnergyChecks.Checks(manager, ability, prefab);
+            while (energyChecks.MoveNext()) yield return energyChecks.Current;
+            var protectionChecks = ProtectionChecks.Checks(manager, ability, prefab);
+            while (protectionChecks.MoveNext()) yield return protectionChecks.Current;
+            var defeatChecks = DefeatChecks.Checks(manager, ability, prefab);
+            while (defeatChecks.MoveNext()) yield return defeatChecks.Current;
+            var farmChecks = FarmChecks.Checks(Object.FindFirstObjectByType<GameManager>());
+            while (farmChecks.MoveNext()) yield return farmChecks.Current;
+            var assaultChecks = FarmAssaultChecks.Checks(Object.FindFirstObjectByType<GameManager>());
+            while (assaultChecks.MoveNext()) yield return assaultChecks.Current;
         }
 
         private static IEnumerator CombatChecks(Necromancer leader, Zombie prefab)

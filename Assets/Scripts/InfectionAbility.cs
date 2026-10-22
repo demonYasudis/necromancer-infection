@@ -9,14 +9,17 @@ namespace NecromancerInfection
         [SerializeField] private Necromancer necromancer;
         [SerializeField] private Zombie zombiePrefab;
         [SerializeField, Min(0.01f)] private float infectionDelay = 1.2f;
+        [SerializeField, Min(0)] private float infectionCost = 15;
 
         public float InfectionDelay => infectionDelay;
+        public float InfectionCost => infectionCost;
+        public DarkEnergy Energy => necromancer ? necromancer.Energy : null;
 
         private void Awake()
         {
-            if (!levelCamera || !necromancer || !zombiePrefab)
+            if (!levelCamera || !necromancer || !zombiePrefab || !Energy)
             {
-                Debug.LogError("InfectionAbility requires a camera, necromancer and zombie prefab.", this);
+                Debug.LogError("InfectionAbility requires a camera, necromancer with DarkEnergy and zombie prefab.", this);
                 enabled = false;
             }
         }
@@ -29,14 +32,23 @@ namespace NecromancerInfection
 
         public bool TryInfectAtScreenPosition(Vector2 screenPosition)
         {
-            if (!isActiveAndEnabled || !levelCamera || !necromancer || !zombiePrefab) return false;
+            if (!isActiveAndEnabled || Time.timeScale <= 0 || !levelCamera || !necromancer || !zombiePrefab
+                || !Energy || !Energy.CanSpend(infectionCost)) return false;
+            var hud = GetComponent<DarkEnergyHUD>();
+            if (hud && hud.isActiveAndEnabled && hud.ContainsScreenPosition(screenPosition)) return false;
             Ray ray = levelCamera.ScreenPointToRay(screenPosition);
             if (!Physics.Raycast(ray, out RaycastHit hit, levelCamera.farClipPlane,
                 Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)) return false;
             var civilian = hit.collider.GetComponentInParent<Civilian>();
-            return civilian && civilian.TryInfect(zombiePrefab, necromancer, infectionDelay);
+            if (!civilian || !civilian.TryInfect(zombiePrefab, necromancer, infectionDelay)) return false;
+            // TryInfect changes the target synchronously; rejected clicks never spend energy.
+            return Energy.TrySpend(infectionCost);
         }
 
-        private void OnValidate() => infectionDelay = Mathf.Max(0.01f, infectionDelay);
+        private void OnValidate()
+        {
+            infectionDelay = Mathf.Max(0.01f, infectionDelay);
+            infectionCost = Mathf.Max(0, infectionCost);
+        }
     }
 }

@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 6068547305047323935}
   - component: {fileID: 3489506023650277365}
   - component: {fileID: 6224908237048333589}
+  - component: {fileID: 5480508166524976047}
   m_Layer: 0
   m_Name: Necromancer
   m_TagString: Untagged
@@ -106,6 +107,25 @@ MonoBehaviour:
   attackCooldown: 1
   currentHealth: 0
   setupVersion: 1
+--- !u!114 &5480508166524976047
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 220336411762625717}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52ac9d24c5b7f624aa324f9aee53bfb9, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::NecromancerInfection.DarkEnergy
+  maxEnergy: 100
+  startingEnergy: 100
+  regenerationPerSecond: 1
+  zombieReward: 5
+  humanDeathReward: 3
+  guardDeathReward: 8
+  currentEnergy: 0
 --- !u!1 &635719795693589548
 GameObject:
   m_ObjectHideFlags: 0

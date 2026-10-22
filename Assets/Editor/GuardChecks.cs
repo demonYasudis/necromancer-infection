@@ -21,8 +21,8 @@ namespace NecromancerInfection.Editor
             Require(guard.Combat.MaxHealth == 100 && guard.Combat.Damage == 15, "Guard prefab must have 100 HP and 15 damage.");
             Require(guard.CurrentTarget == zombie.Combat && zombie.Combat.CurrentHealth == 35,
                 "Guard must detect and hit a nearby zombie for 15 damage.");
-            int zombieHealth = zombie.Combat.CurrentHealth;
-            int leaderHealth = leader.CurrentHealth;
+            float zombieHealth = zombie.Combat.CurrentHealth;
+            float leaderHealth = leader.CurrentHealth;
             leader.transform.position = new Vector3(0.8f, 0, 0);
             yield return 0.1f;
             Require(guard.CurrentTarget == leader.Combat, "Nearby necromancer must preempt an existing zombie target.");

@@ -6,7 +6,7 @@ namespace NecromancerInfection
     [DisallowMultipleComponent]
     public sealed class Guard : MonoBehaviour
     {
-        public enum BehaviourState { Idle, Pursuing, Attacking, Returning }
+        public enum BehaviourState { Idle, Pursuing, Attacking, Returning, Patrolling }
         [SerializeField, Min(0.1f)] private float moveSpeed = 2.6f;
         [SerializeField, Min(0.1f)] private float detectionRadius = 6;
         [SerializeField, Min(0.1f)] private float necromancerPriorityRadius = 5;
@@ -14,6 +14,8 @@ namespace NecromancerInfection
         [SerializeField] private Rect movementArea = new Rect(-17, -10, 34, 20);
         [SerializeField] private BehaviourState state;
         [SerializeField] private UnitCombat currentTarget;
+        [SerializeField] private Vector3[] patrolOffsets = new Vector3[0];
+        private int nextPatrolPoint;
         private Vector3 home;
         private UnitCombat combat;
         private readonly RaycastHit[] obstacles = new RaycastHit[32];
@@ -40,6 +42,18 @@ namespace NecromancerInfection
                 necromancerPriorityRadius, home, chaseRadius);
             if (!currentTarget)
             {
+                if (patrolOffsets.Length > 0 && (state == BehaviourState.Patrolling || fromHome <= 0.2f))
+                {
+                    state = BehaviourState.Patrolling;
+                    Vector3 destination = home + patrolOffsets[nextPatrolPoint];
+                    if (FlatDistance(transform.position, destination) <= 0.2f)
+                    {
+                        nextPatrolPoint = (nextPatrolPoint + 1) % patrolOffsets.Length;
+                        destination = home + patrolOffsets[nextPatrolPoint];
+                    }
+                    MoveTowards(destination, 0.15f);
+                    return;
+                }
                 state = fromHome > 0.2f ? BehaviourState.Returning : BehaviourState.Idle;
                 MoveTowards(home, 0.2f);
                 return;

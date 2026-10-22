@@ -22,6 +22,9 @@ namespace NecromancerInfection
         private readonly RaycastHit[] obstacles = new RaycastHit[32];
         private static readonly float[] SteeringAngles = { 0, 30, -30, 60, -60, 90, -90, 120, -120 };
         private UnitCombat combat;
+        private bool spawnReported;
+
+        public static event System.Action<Zombie> Raised;
 
         public Necromancer Leader { get; private set; }
         public UnitCombat CurrentTarget => currentTarget;
@@ -34,6 +37,11 @@ namespace NecromancerInfection
             Leader = leader;
             currentTarget = null;
             state = BehaviourState.Following;
+            if (!spawnReported && leader && Combat.IsAlive)
+            {
+                spawnReported = true;
+                Raised?.Invoke(this);
+            }
         }
 
         private void Update()

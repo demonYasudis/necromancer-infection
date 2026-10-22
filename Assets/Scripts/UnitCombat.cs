@@ -11,17 +11,18 @@ namespace NecromancerInfection
         [SerializeField, Min(0)] private int damage;
         [SerializeField, Min(0.01f)] private float attackRange = 0.9f;
         [SerializeField, Min(0.01f)] private float attackCooldown = 1;
-        [SerializeField] private int currentHealth;
+        [SerializeField] private float currentHealth;
         [SerializeField, HideInInspector] private int setupVersion;
         private float nextAttackTime;
 
         public int MaxHealth => maxHealth;
-        public int CurrentHealth => currentHealth;
+        public float CurrentHealth => currentHealth;
         public int Damage => damage;
         public float AttackRange => attackRange;
         public float AttackCooldown => attackCooldown;
         public bool IsAlive => currentHealth > 0;
         public event Action<UnitCombat> Died;
+        public static event Action<UnitCombat> AnyDied;
 
         private void Awake() => currentHealth = maxHealth;
 
@@ -40,14 +41,17 @@ namespace NecromancerInfection
 
         public bool TakeDamage(int amount, UnitCombat attacker = null)
         {
-            if (!isActiveAndEnabled || !IsAlive || amount <= 0) return false;
-            currentHealth = Mathf.Max(0, currentHealth - amount);
+            if (!isActiveAndEnabled || !IsAlive || amount <= 0 || Time.timeScale <= 0) return false;
+            float incoming = amount * ProtectionArea.IncomingDamageMultiplier(this);
+            if (incoming <= 0) return false;
+            currentHealth = Mathf.Max(0, currentHealth - incoming);
             if (IsAlive) return true;
 
             // HP reaches zero synchronously: later hits in this frame cannot kill twice.
             foreach (var body in GetComponentsInChildren<Collider>()) body.enabled = false;
             try
             {
+                AnyDied?.Invoke(this);
                 Died?.Invoke(attacker);
             }
             finally

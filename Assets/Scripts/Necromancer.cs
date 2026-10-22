@@ -4,6 +4,7 @@ using UnityEngine;
 namespace NecromancerInfection
 {
     [RequireComponent(typeof(UnitCombat))]
+    [RequireComponent(typeof(DarkEnergy))]
     [DisallowMultipleComponent]
     public sealed class Necromancer : MonoBehaviour
     {
@@ -14,8 +15,9 @@ namespace NecromancerInfection
         private int nextWaypoint;
 
         public UnitCombat Combat => combat ? combat : combat = GetComponent<UnitCombat>();
+        public DarkEnergy Energy => GetComponent<DarkEnergy>();
         public int MaxHealth => Combat.MaxHealth;
-        public int CurrentHealth => Combat.CurrentHealth;
+        public float CurrentHealth => Combat.CurrentHealth;
         public float MoveSpeed => moveSpeed;
         public bool HasArrived => route.Length > 0 && nextWaypoint == route.Length;
 
