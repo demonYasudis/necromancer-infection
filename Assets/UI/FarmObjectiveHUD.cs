@@ -13,7 +13,7 @@ namespace NecromancerInfection
 
         private void OnGUI()
         {
-            if (!manager || !manager.Farm || manager.IsDefeated) return;
+            if (!manager || !manager.Farm || manager.IsFinished) return;
             float scale = Mathf.Min(Screen.width / 1280f, Screen.height / 720f);
             if (scale <= 0) return;
             if (title == null)

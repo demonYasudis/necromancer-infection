@@ -27,6 +27,7 @@ namespace NecromancerInfection
         private float nextWanderChoice;
         private Renderer[] infectedRenderers;
         private MaterialPropertyBlock[] originalAppearance;
+        private MagicMotes infectionEffect;
 
         public BehaviourState State => state;
         public UnitCombat Combat => combat ? combat : combat = GetComponent<UnitCombat>();
@@ -49,6 +50,7 @@ namespace NecromancerInfection
         {
             if (!IsAvailableTarget || !zombiePrefab || !leader || !leader.Combat.IsAlive || delay <= 0) return false;
             state = BehaviourState.Infected;
+            infectionEffect = MagicMotes.Infection(transform);
             infectedRenderers = GetComponentsInChildren<Renderer>();
             originalAppearance = new MaterialPropertyBlock[infectedRenderers.Length];
             for (int i = 0; i < infectedRenderers.Length; i++)
@@ -100,6 +102,7 @@ namespace NecromancerInfection
 
         private void RestoreAppearance()
         {
+            if (infectionEffect) Destroy(infectionEffect.gameObject);
             if (infectedRenderers == null) return;
             for (int i = 0; i < infectedRenderers.Length; i++)
                 if (infectedRenderers[i]) infectedRenderers[i].SetPropertyBlock(originalAppearance[i]);

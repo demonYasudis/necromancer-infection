@@ -2425,6 +2425,8 @@ GameObject:
   - component: {fileID: 446607872}
   - component: {fileID: 446607874}
   - component: {fileID: 446607875}
+  - component: {fileID: 446607876}
+  - component: {fileID: 446607877}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -2454,6 +2456,7 @@ MonoBehaviour:
   - {fileID: 1928296071}
   - {fileID: 760899514}
   - {fileID: 1659059063}
+  menuScenePath:
 --- !u!4 &446607873
 Transform:
   m_ObjectHideFlags: 0
@@ -2493,6 +2496,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e1e76d7459faa9547983ff229943e0e4, type: 3}
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::NecromancerInfection.FarmObjectiveHUD
+--- !u!114 &446607876
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 446607871}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 24ff0513315d0a344972ac19a56c828b, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::NecromancerInfection.VictoryScreen
+--- !u!114 &446607877
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 446607871}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f8793f5ae2c2fb4f8234d07cdf884d1, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::NecromancerInfection.GameFeedback
 --- !u!1 &453566470
 GameObject:
   m_ObjectHideFlags: 0

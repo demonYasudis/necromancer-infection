@@ -66,7 +66,7 @@ namespace NecromancerInfection.Editor
                 if (routine.MoveNext())
                     resumeAt = EditorApplication.timeSinceStartup + (float)routine.Current;
                 else
-                    Finish(true, "All prototype integration checks passed (infection, horde, combat, guards, dark energy, protection, defeat/retry, farm, final assault).");
+                    Finish(true, "All prototype integration checks passed (infection, horde, combat, guards, dark energy, protection, defeat/retry, farm, final assault, victory/statistics/retry, visual feedback/UI).");
             }
             catch (Exception exception)
             {
@@ -193,6 +193,10 @@ namespace NecromancerInfection.Editor
             while (farmChecks.MoveNext()) yield return farmChecks.Current;
             var assaultChecks = FarmAssaultChecks.Checks(Object.FindFirstObjectByType<GameManager>());
             while (assaultChecks.MoveNext()) yield return assaultChecks.Current;
+            var victoryChecks = VictoryChecks.Checks(Object.FindFirstObjectByType<GameManager>(), prefab);
+            while (victoryChecks.MoveNext()) yield return victoryChecks.Current;
+            var feedbackChecks = FeedbackChecks.Checks(Object.FindFirstObjectByType<GameManager>(), prefab);
+            while (feedbackChecks.MoveNext()) yield return feedbackChecks.Current;
         }
 
         private static IEnumerator CombatChecks(Necromancer leader, Zombie prefab)

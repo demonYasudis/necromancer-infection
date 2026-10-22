@@ -35,6 +35,8 @@ namespace NecromancerInfection
                 || screenPosition.x >= Screen.width || screenPosition.y >= Screen.height) return false;
             var hud = GetComponent<DarkEnergyHUD>();
             if (hud && hud.isActiveAndEnabled && hud.ContainsScreenPosition(screenPosition)) return false;
+            var feedback = FindFirstObjectByType<GameFeedback>();
+            if (feedback && feedback.isActiveAndEnabled && feedback.ContainsScreenPosition(screenPosition)) return false;
             Ray ray = levelCamera.ScreenPointToRay(screenPosition);
             if (!Physics.Raycast(ray, out RaycastHit hit, levelCamera.farClipPlane,
                 Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)

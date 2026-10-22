@@ -14,11 +14,15 @@ namespace NecromancerInfection
         [SerializeField, Range(0, 1)] private float damageReduction = 0.5f;
         private float expiresAt;
         private Mesh disc;
+        private LineRenderer timerArc;
+        private LineRenderer ring;
+        private readonly Vector3[] arcPoints = new Vector3[97];
 
         public float Radius => radius;
         public float Duration => duration;
         public float DamageReduction => damageReduction;
         public bool IsActive => isActiveAndEnabled && Time.time < expiresAt;
+        public float RemainingFraction => Mathf.Clamp01((expiresAt - Time.time) / duration);
 
         private void Awake()
         {
@@ -37,6 +41,24 @@ namespace NecromancerInfection
         private void Update()
         {
             if (Time.time >= expiresAt) Destroy(gameObject);
+            UpdateVisual();
+        }
+
+        private void UpdateVisual()
+        {
+            float remaining = RemainingFraction;
+            float alpha = Mathf.Clamp01(remaining * 5);
+            float pulse = 0.75f + Mathf.Sin((duration - (expiresAt - Time.time)) * 5) * 0.15f;
+            ring.startColor = ring.endColor = new Color(1, 1, 1, alpha * pulse);
+            timerArc.startColor = timerArc.endColor = new Color(1, 1, 1, alpha);
+            int count = Mathf.Max(2, Mathf.CeilToInt(96 * remaining) + 1);
+            timerArc.positionCount = count;
+            for (int i = 0; i < count; i++)
+            {
+                float angle = Mathf.PI * 0.5f + i / (float)(count - 1) * Mathf.PI * 2 * remaining;
+                arcPoints[i] = new Vector3(Mathf.Cos(angle) * radius * 0.91f, 0.07f, Mathf.Sin(angle) * radius * 0.91f);
+                timerArc.SetPosition(i, arcPoints[i]);
+            }
         }
 
         public static float IncomingDamageMultiplier(UnitCombat target)
@@ -57,7 +79,7 @@ namespace NecromancerInfection
         private void BuildVisual()
         {
             const int segments = 96;
-            var ring = GetComponent<LineRenderer>();
+            ring = GetComponent<LineRenderer>();
             ring.useWorldSpace = false;
             ring.loop = true;
             ring.positionCount = segments;
@@ -90,6 +112,14 @@ namespace NecromancerInfection
             var fill = GetComponent<MeshRenderer>();
             fill.shadowCastingMode = ShadowCastingMode.Off;
             fill.receiveShadows = false;
+            timerArc = new GameObject("ProtectionTimeArc").AddComponent<LineRenderer>();
+            timerArc.transform.SetParent(transform, false);
+            timerArc.useWorldSpace = false;
+            timerArc.sharedMaterial = ring.sharedMaterial;
+            timerArc.widthMultiplier = 0.14f;
+            timerArc.shadowCastingMode = ShadowCastingMode.Off;
+            timerArc.receiveShadows = false;
+            UpdateVisual();
         }
 
         private void OnValidate()

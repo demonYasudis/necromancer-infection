@@ -14,6 +14,7 @@ namespace NecromancerInfection
         [SerializeField, Min(0)] private float guardDeathReward = 8;
         [SerializeField] private float currentEnergy;
         private Necromancer owner;
+        public event System.Action<float, Vector3> Rewarded;
 
         public float Current => currentEnergy;
         public float Maximum => maxEnergy;
@@ -58,13 +59,21 @@ namespace NecromancerInfection
         private void OnUnitDied(UnitCombat victim)
         {
             if (victim.gameObject.scene != gameObject.scene) return;
-            if (victim.GetComponent<Civilian>()) Restore(humanDeathReward);
-            else if (victim.GetComponent<Guard>()) Restore(guardDeathReward);
+            if (victim.GetComponent<Civilian>()) RestoreReward(humanDeathReward, victim.transform.position);
+            else if (victim.GetComponent<Guard>()) RestoreReward(guardDeathReward, victim.transform.position);
         }
 
         private void OnZombieRaised(Zombie zombie)
         {
-            if (zombie.Leader == owner) Restore(zombieReward);
+            if (zombie.Leader == owner) RestoreReward(zombieReward, zombie.transform.position);
+        }
+
+        private void RestoreReward(float amount, Vector3 position)
+        {
+            float before = currentEnergy;
+            Restore(amount);
+            float gained = currentEnergy - before;
+            if (gained > 0) Rewarded?.Invoke(gained, position);
         }
 
         private void OnValidate()
