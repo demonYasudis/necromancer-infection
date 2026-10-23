@@ -10,9 +10,11 @@ namespace NecromancerInfection
         [SerializeField] private Zombie zombiePrefab;
         [SerializeField, Min(0.01f)] private float infectionDelay = 1.2f;
         [SerializeField, Min(0)] private float infectionCost = 15;
+        [SerializeField, Min(0)] private float raiseGuardCost = 35;
 
         public float InfectionDelay => infectionDelay;
         public float InfectionCost => infectionCost;
+        public float RaiseGuardCost => raiseGuardCost;
         public DarkEnergy Energy => necromancer ? necromancer.Energy : null;
 
         private void Awake()
@@ -33,14 +35,20 @@ namespace NecromancerInfection
         public bool TryInfectAtScreenPosition(Vector2 screenPosition)
         {
             if (!isActiveAndEnabled || Time.timeScale <= 0 || !levelCamera || !necromancer || !zombiePrefab
-                || !Energy || !Energy.CanSpend(infectionCost)) return false;
+                || !Energy || screenPosition.x < 0 || screenPosition.y < 0
+                || screenPosition.x >= Screen.width || screenPosition.y >= Screen.height) return false;
             var hud = GetComponent<DarkEnergyHUD>();
             if (hud && hud.isActiveAndEnabled && hud.ContainsScreenPosition(screenPosition)) return false;
             var feedback = FindFirstObjectByType<GameFeedback>();
             if (feedback && feedback.isActiveAndEnabled && feedback.ContainsScreenPosition(screenPosition)) return false;
             Ray ray = levelCamera.ScreenPointToRay(screenPosition);
             if (!Physics.Raycast(ray, out RaycastHit hit, levelCamera.farClipPlane,
-                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)) return false;
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide)) return false;
+            var corpse = hit.collider.GetComponentInParent<GuardCorpse>();
+            if (corpse) return corpse.TryRaise(necromancer, raiseGuardCost);
+            var grave = hit.collider.GetComponentInParent<Grave>();
+            if (grave) return grave.TryRaise(necromancer);
+            if (!Energy.CanSpend(infectionCost)) return false;
             var civilian = hit.collider.GetComponentInParent<Civilian>();
             if (!civilian || !civilian.TryInfect(zombiePrefab, necromancer, infectionDelay)) return false;
             // TryInfect changes the target synchronously; rejected clicks never spend energy.
@@ -51,6 +59,7 @@ namespace NecromancerInfection
         {
             infectionDelay = Mathf.Max(0.01f, infectionDelay);
             infectionCost = Mathf.Max(0, infectionCost);
+            raiseGuardCost = Mathf.Max(0, raiseGuardCost);
         }
     }
 }

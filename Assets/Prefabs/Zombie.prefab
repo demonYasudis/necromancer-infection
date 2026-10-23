@@ -702,6 +702,7 @@ MonoBehaviour:
   approachDistance: 0.9
   maxHordeDistance: 8
   returnDistance: 3
+  crowdSpacing: 0.68
   movementArea:
     serializedVersion: 2
     x: -17

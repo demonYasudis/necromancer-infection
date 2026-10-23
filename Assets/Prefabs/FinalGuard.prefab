@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 536638513173478879}
   - component: {fileID: 6263481626244373564}
   - component: {fileID: 2176793209424265912}
+  - component: {fileID: 9027648672374630736}
   m_Layer: 0
   m_Name: FinalGuard
   m_TagString: Untagged
@@ -55,7 +56,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ebde766b51843724ca24833b5f2683b6, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::NecromancerInfection.UnitCombat
   maxHealth: 100
   damage: 15
@@ -73,7 +74,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2ea3da2091d24f1479448e7678836b18, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::NecromancerInfection.LivingTarget
 --- !u!114 &6263481626244373564
 MonoBehaviour:
@@ -85,7 +86,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0817d280387a27e47bdbe6f25a987ffe, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::NecromancerInfection.Guard
   moveSpeed: 2.6
   detectionRadius: 12
@@ -123,6 +124,19 @@ CapsuleCollider:
   m_Height: 1.8
   m_Direction: 1
   m_Center: {x: 0, y: 0.9, z: 0}
+--- !u!114 &9027648672374630736
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 572347235834952375}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cb3e3f2044d2ac4ca199ffefd598c52, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::NecromancerInfection.GuardRemains
+  corpsePrefab: {fileID: 6374925274518791895, guid: 3d78d925e83c1554e997db6e04ac7888, type: 3}
 --- !u!1 &660775762656789517
 GameObject:
   m_ObjectHideFlags: 0

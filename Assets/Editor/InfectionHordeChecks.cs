@@ -14,6 +14,11 @@ namespace NecromancerInfection.Editor
     {
         private const string RunningKey = "NecromancerInfection.ChecksRunning";
         private const string BatchKey = "NecromancerInfection.ChecksBatch";
+        private const string CrowdKey = "NecromancerInfection.CrowdChecksOnly";
+        private const string CrossbowKey = "NecromancerInfection.CrossbowChecksOnly";
+        private const string RaisedGuardKey = "NecromancerInfection.RaisedGuardChecksOnly";
+        private const string AlarmKey = "NecromancerInfection.AlarmChecksOnly";
+        private const string GraveyardKey = "NecromancerInfection.GraveyardChecksOnly";
         private static IEnumerator routine;
         private static double resumeAt;
         private static double deadline;
@@ -30,13 +35,20 @@ namespace NecromancerInfection.Editor
         }
 
         [MenuItem("Necromancer Infection/Run Prototype Checks")]
-        public static void Run()
+        public static void Run() => RunChecks(false);
+
+        private static void RunChecks(bool crowdOnly, bool crossbowOnly = false, bool raisedGuardOnly = false, bool alarmOnly = false, bool graveyardOnly = false)
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
                 throw new InvalidOperationException("Stop Play Mode before starting checks.");
             if (EditorSceneManager.GetActiveScene().isDirty)
                 throw new InvalidOperationException("Save scene changes before starting checks.");
             EditorSceneManager.OpenScene(DemoLevelSetup.ScenePath);
+            SessionState.SetBool(CrowdKey, crowdOnly);
+            SessionState.SetBool(CrossbowKey, crossbowOnly);
+            SessionState.SetBool(RaisedGuardKey, raisedGuardOnly);
+            SessionState.SetBool(AlarmKey, alarmOnly);
+            SessionState.SetBool(GraveyardKey, graveyardOnly);
             SessionState.SetBool(RunningKey, true);
             EditorApplication.EnterPlaymode();
         }
@@ -47,15 +59,64 @@ namespace NecromancerInfection.Editor
             Run();
         }
 
+        [MenuItem("Necromancer Infection/Run Crowd Checks")]
+        public static void RunCrowd() => RunChecks(true);
+
+        public static void RunCrowdBatch()
+        {
+            SessionState.SetBool(BatchKey, true);
+            RunCrowd();
+        }
+
+        [MenuItem("Necromancer Infection/Run Crossbow Checks")]
+        public static void RunCrossbow() => RunChecks(false, true);
+
+        public static void RunCrossbowBatch()
+        {
+            SessionState.SetBool(BatchKey, true);
+            RunCrossbow();
+        }
+
+        [MenuItem("Necromancer Infection/Run Raised Guard Checks")]
+        public static void RunRaisedGuard() => RunChecks(false, false, true);
+
+        public static void RunRaisedGuardBatch()
+        {
+            SessionState.SetBool(BatchKey, true);
+            RunRaisedGuard();
+        }
+
+        [MenuItem("Necromancer Infection/Run Alarm Checks")]
+        public static void RunAlarm() => RunChecks(false, false, false, true);
+
+        public static void RunAlarmBatch()
+        {
+            SessionState.SetBool(BatchKey, true);
+            RunAlarm();
+        }
+
+        [MenuItem("Necromancer Infection/Run Graveyard Checks")]
+        public static void RunGraveyard() => RunChecks(false, false, false, false, true);
+
+        public static void RunGraveyardBatch()
+        {
+            SessionState.SetBool(BatchKey, true);
+            RunGraveyard();
+        }
+
         private static void Update()
         {
             if (!SessionState.GetBool(RunningKey, false) || !EditorApplication.isPlaying
                 || EditorApplication.isPaused) return;
             if (routine == null)
             {
-                routine = Checks();
+                routine = SessionState.GetBool(GraveyardKey, false) ? GraveyardChecks.Checks()
+                    : SessionState.GetBool(AlarmKey, false) ? AlarmChecks.Checks()
+                    : SessionState.GetBool(RaisedGuardKey, false) ? RaisedGuardChecks.Checks()
+                    : SessionState.GetBool(CrossbowKey, false) ? CrossbowChecks.Checks()
+                    : SessionState.GetBool(CrowdKey, false) ? CrowdChecks.Checks() : Checks();
                 resumeAt = EditorApplication.timeSinceStartup + 0.5;
-                deadline = EditorApplication.timeSinceStartup + 150;
+                deadline = EditorApplication.timeSinceStartup + 360;
                 Application.logMessageReceived += WatchErrors;
             }
             if (EditorApplication.timeSinceStartup < resumeAt) return;
@@ -66,7 +127,16 @@ namespace NecromancerInfection.Editor
                 if (routine.MoveNext())
                     resumeAt = EditorApplication.timeSinceStartup + (float)routine.Current;
                 else
-                    Finish(true, "All prototype integration checks passed (infection, horde, combat, guards, dark energy, protection, defeat/retry, farm, final assault, victory/statistics/retry, visual feedback/UI).");
+                    Finish(true, SessionState.GetBool(GraveyardKey, false) ? "All graveyard checks passed."
+                        : SessionState.GetBool(AlarmKey, false)
+                        ? "All village alarm checks passed (runner detection/movement, paid infection, death, pause, single patrol, combat and retry)."
+                        : SessionState.GetBool(RaisedGuardKey, false)
+                        ? "All raised-guard checks passed (corpses, paid LMB raising, heavy combat, resource/statistics semantics, protection and retry)."
+                        : SessionState.GetBool(CrossbowKey, false)
+                        ? "All crossbow integration checks passed (warning, bolts, protection, cooldown, walls/range, pause, target lifecycle, defender rewards and retry)."
+                        : SessionState.GetBool(CrowdKey, false)
+                        ? "All crowd integration checks passed (30-member formation, narrow passage, walls/leash, attack ranks, pause and reload)."
+                        : "All prototype integration checks passed (infection, horde, combat, guards, dark energy, protection, defeat/retry, farm, final assault, victory/statistics/retry, visual feedback/UI, crowd movement, crossbowmen).");
             }
             catch (Exception exception)
             {
@@ -81,6 +151,7 @@ namespace NecromancerInfection.Editor
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(InfectionSetup.PrefabPath).GetComponent<Zombie>();
             Require(manager && ability && prefab, "Scene references and prefabs must exist.");
             var leader = manager.Necromancer;
+            CrossbowChecks.DisableSceneArchers();
             Require(leader.Energy && leader.Energy.Current == 100 && leader.Energy.Maximum == 100
                 && ability.InfectionCost == 15 && ability.GetComponent<DarkEnergyHUD>(),
                 "DemoLevel must start at 100/100 energy with infection cost 15 and a HUD.");
@@ -197,6 +268,16 @@ namespace NecromancerInfection.Editor
             while (victoryChecks.MoveNext()) yield return victoryChecks.Current;
             var feedbackChecks = FeedbackChecks.Checks(Object.FindFirstObjectByType<GameManager>(), prefab);
             while (feedbackChecks.MoveNext()) yield return feedbackChecks.Current;
+            var crowdChecks = CrowdChecks.Checks();
+            while (crowdChecks.MoveNext()) yield return crowdChecks.Current;
+            var crossbowChecks = CrossbowChecks.Checks();
+            while (crossbowChecks.MoveNext()) yield return crossbowChecks.Current;
+            var raisedGuardChecks = RaisedGuardChecks.Checks();
+            while (raisedGuardChecks.MoveNext()) yield return raisedGuardChecks.Current;
+            var alarmChecks = AlarmChecks.Checks();
+            while (alarmChecks.MoveNext()) yield return alarmChecks.Current;
+            var graveyardChecks = GraveyardChecks.Checks();
+            while (graveyardChecks.MoveNext()) yield return graveyardChecks.Current;
         }
 
         private static IEnumerator CombatChecks(Necromancer leader, Zombie prefab)
@@ -335,6 +416,11 @@ namespace NecromancerInfection.Editor
         private static void Finish(bool success, string message)
         {
             SessionState.SetBool(RunningKey, false);
+            SessionState.SetBool(CrowdKey, false);
+            SessionState.SetBool(CrossbowKey, false);
+            SessionState.SetBool(RaisedGuardKey, false);
+            SessionState.SetBool(AlarmKey, false);
+            SessionState.SetBool(GraveyardKey, false);
             Application.logMessageReceived -= WatchErrors;
             routine = null;
             runtimeError = null;

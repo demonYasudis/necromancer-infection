@@ -60,12 +60,14 @@ namespace NecromancerInfection
         {
             if (victim.gameObject.scene != gameObject.scene) return;
             if (victim.GetComponent<Civilian>()) RestoreReward(humanDeathReward, victim.transform.position);
-            else if (victim.GetComponent<Guard>()) RestoreReward(guardDeathReward, victim.transform.position);
+            else if (victim.GetComponent<Guard>() || victim.GetComponent<Crossbowman>())
+                RestoreReward(guardDeathReward, victim.transform.position);
         }
 
         private void OnZombieRaised(Zombie zombie)
         {
-            if (zombie.Leader == owner) RestoreReward(zombieReward, zombie.transform.position);
+            if (zombie.Leader == owner && !zombie.GetComponent<RaisedGuard>() && !zombie.GetComponent<Skeleton>())
+                RestoreReward(zombieReward, zombie.transform.position);
         }
 
         private void RestoreReward(float amount, Vector3 position)

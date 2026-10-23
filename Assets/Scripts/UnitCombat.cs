@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace NecromancerInfection
 {
-    /// <summary>Shared health, melee range and per-attacker cooldown. AI chooses the target.</summary>
+    /// <summary>Shared health, attack range and per-attacker cooldown. AI chooses the target.</summary>
     [DisallowMultipleComponent]
     public sealed class UnitCombat : MonoBehaviour
     {
@@ -28,6 +28,13 @@ namespace NecromancerInfection
 
         public bool TryAttack(UnitCombat target)
         {
+            if (!TryBeginAttack(target)) return false;
+            return target.TakeDamage(damage, this);
+        }
+
+        /// <summary>Reserves range/cooldown for an attack whose damage may arrive later.</summary>
+        public bool TryBeginAttack(UnitCombat target)
+        {
             if (!isActiveAndEnabled || !IsAlive || damage <= 0 || Time.timeScale <= 0
                 || Time.time < nextAttackTime || !target || target == this
                 || !target.isActiveAndEnabled || !target.IsAlive) return false;
@@ -36,7 +43,7 @@ namespace NecromancerInfection
 
             // Reserve the cooldown before damage callbacks can trigger further gameplay.
             nextAttackTime = Time.time + attackCooldown;
-            return target.TakeDamage(damage, this);
+            return true;
         }
 
         public bool TakeDamage(int amount, UnitCombat attacker = null)

@@ -88,13 +88,15 @@ namespace NecromancerInfection
 
         private void OnZombieRaised(Zombie zombie)
         {
-            if (!IsFinished && zombie.Leader == necromancer && zombie.gameObject.scene == gameObject.scene)
+            if (!IsFinished && !zombie.GetComponent<RaisedGuard>() && !zombie.GetComponent<Skeleton>()
+                && zombie.Leader == necromancer && zombie.gameObject.scene == gameObject.scene)
                 InfectedCount++;
         }
 
         private void OnUnitDied(UnitCombat victim)
         {
-            if (!IsFinished && victim.gameObject.scene == gameObject.scene && victim.GetComponent<Guard>())
+            if (!IsFinished && victim.gameObject.scene == gameObject.scene
+                && (victim.GetComponent<Guard>() || victim.GetComponent<Crossbowman>()))
                 GuardsKilled++;
         }
 

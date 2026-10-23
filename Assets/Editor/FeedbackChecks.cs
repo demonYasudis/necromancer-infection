@@ -10,6 +10,7 @@ namespace NecromancerInfection.Editor
     {
         public static IEnumerator Checks(GameManager manager, Zombie prefab)
         {
+            CrossbowChecks.DisableSceneArchers();
             var feedback = manager.GetComponent<GameFeedback>();
             Require(feedback, "The authored scene must include feedback UI.");
             foreach (var guard in Object.FindObjectsByType<Guard>(FindObjectsSortMode.None)) guard.gameObject.SetActive(false);

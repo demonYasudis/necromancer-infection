@@ -23,6 +23,7 @@ namespace NecromancerInfection
                 if (!health.isActiveAndEnabled || !health.IsAlive) continue;
                 if (living.TryGetComponent<Civilian>(out var human) && !human.IsAvailableTarget) continue;
                 if (living.TryGetComponent<Guard>(out var guard) && !guard.isActiveAndEnabled) continue;
+                if (living.TryGetComponent<Crossbowman>(out var archer) && !archer.isActiveAndEnabled) continue;
                 Vector3 fromHorde = living.transform.position - hordeCenter;
                 fromHorde.y = 0;
                 if (fromHorde.sqrMagnitude > hordeRadius * hordeRadius) continue;

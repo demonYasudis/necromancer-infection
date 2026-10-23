@@ -8,7 +8,7 @@ namespace NecromancerInfection
     [DisallowMultipleComponent]
     public sealed class Civilian : MonoBehaviour
     {
-        public enum BehaviourState { Wandering, Fleeing, Infected }
+        public enum BehaviourState { Wandering, Fleeing, Infected, RunningToBell }
 
         [SerializeField, Min(0.1f)] private float walkSpeed = 0.8f;
         [SerializeField, Min(0.1f)] private float runSpeed = 2.8f;
@@ -28,6 +28,7 @@ namespace NecromancerInfection
         private Renderer[] infectedRenderers;
         private MaterialPropertyBlock[] originalAppearance;
         private MagicMotes infectionEffect;
+        public event System.Action InfectionStarted;
 
         public BehaviourState State => state;
         public UnitCombat Combat => combat ? combat : combat = GetComponent<UnitCombat>();
@@ -50,6 +51,7 @@ namespace NecromancerInfection
         {
             if (!IsAvailableTarget || !zombiePrefab || !leader || !leader.Combat.IsAlive || delay <= 0) return false;
             state = BehaviourState.Infected;
+            InfectionStarted?.Invoke();
             infectionEffect = MagicMotes.Infection(transform);
             infectedRenderers = GetComponentsInChildren<Renderer>();
             originalAppearance = new MaterialPropertyBlock[infectedRenderers.Length];
@@ -119,6 +121,11 @@ namespace NecromancerInfection
         private void Update()
         {
             if (!Combat.IsAlive || state == BehaviourState.Infected) return;
+            if (TryGetComponent<AlarmRunner>(out var runner) && runner.isActiveAndEnabled && runner.Tick())
+            {
+                state = BehaviourState.RunningToBell;
+                return;
+            }
             // A wider exit radius prevents rapid switching at the edge of detection.
             Transform threat = UndeadPresence.FindNearest(transform.position,
                 state == BehaviourState.Fleeing ? safeRadius : detectionRadius);
@@ -143,6 +150,14 @@ namespace NecromancerInfection
                 if (!Move(direction.normalized, walkSpeed, direction.magnitude))
                     nextWanderChoice = 0;
             }
+        }
+
+        public void RunTowardsBell(Vector3 destination)
+        {
+            if (!IsAvailableTarget || Time.timeScale <= 0) return;
+            Vector3 offset = destination - transform.position;
+            offset.y = 0;
+            Move(offset.normalized, runSpeed, offset.magnitude);
         }
 
         private void ChooseWanderTarget()

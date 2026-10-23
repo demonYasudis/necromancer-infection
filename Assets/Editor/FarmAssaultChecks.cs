@@ -42,6 +42,7 @@ namespace NecromancerInfection.Editor
             SessionState.SetBool(PreviewKey, false);
             previewReadyAt = 0;
             var manager = Object.FindFirstObjectByType<GameManager>();
+            CrossbowChecks.DisableSceneArchers();
             foreach (var guard in Object.FindObjectsByType<Guard>(FindObjectsSortMode.None)) guard.gameObject.SetActive(false);
             manager.Necromancer.BeginRoute(manager.Farm.ArrivalPoint.position, new[] { manager.Farm.ArrivalPoint });
             manager.Farm.TryBeginFinalPhase(manager.Necromancer);
@@ -160,6 +161,7 @@ namespace NecromancerInfection.Editor
 
         private static void Prepare(GameManager manager)
         {
+            CrossbowChecks.DisableSceneArchers();
             foreach (var guard in Object.FindObjectsByType<Guard>(FindObjectsSortMode.None)) guard.gameObject.SetActive(false);
             foreach (var civilian in Object.FindObjectsByType<Civilian>(FindObjectsSortMode.None)) civilian.gameObject.SetActive(false);
         }

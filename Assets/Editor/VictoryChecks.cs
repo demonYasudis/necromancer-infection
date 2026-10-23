@@ -12,6 +12,7 @@ namespace NecromancerInfection.Editor
         {
             for (int attempt = 0; attempt < 2; attempt++)
             {
+                CrossbowChecks.DisableSceneArchers();
                 Require(manager && manager.GetComponent<VictoryScreen>() && !manager.IsFinished
                     && manager.InfectedCount == 0 && manager.GuardsKilled == 0 && manager.SurvivingUndead == 0,
                     "A new attempt must reset victory and all counters and include victory UI.");

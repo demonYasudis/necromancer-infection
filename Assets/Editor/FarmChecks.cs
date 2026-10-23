@@ -10,6 +10,7 @@ namespace NecromancerInfection.Editor
     {
         public static IEnumerator Checks(GameManager manager)
         {
+            CrossbowChecks.DisableSceneArchers();
             var farm = manager.Farm;
             // Isolate traversal from the final battle, which has its own integration scenarios.
             farm.GetComponent<FarmAssault>().enabled = false;

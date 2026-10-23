@@ -46,9 +46,9 @@ namespace NecromancerInfection
                     affordable ? new Color(0.42f, 0.78f, 0.24f) : new Color(0.75f, 0.39f, 0.24f));
                 GUI.color = new Color(0.86f, 0.9f, 0.8f);
                 GUI.Label(new Rect(34, 82, 308, 24), $"ЛКМ · Заражение: {ability.InfectionCost:0.##}", hintStyle);
-                GUI.color = affordable ? new Color(0.62f, 0.7f, 0.59f) : new Color(1, 0.65f, 0.42f);
+                GUI.color = energy.CanSpend(ability.RaiseGuardCost) ? new Color(0.8f, 0.65f, 1) : new Color(1, 0.65f, 0.42f);
                 GUI.Label(new Rect(34, 106, 308, 24),
-                    affordable ? "Заразите жителя, чтобы поднять зомби" : "Недостаточно тёмной энергии", hintStyle);
+                    $"ЛКМ · Поднять тело стражника: {ability.RaiseGuardCost:0.##}", hintStyle);
                 var protection = GetComponent<ProtectionAbility>();
                 if (protection && protection.AreaPrefab)
                 {

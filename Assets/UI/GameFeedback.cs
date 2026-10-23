@@ -13,6 +13,12 @@ namespace NecromancerInfection
         private DarkEnergy energy;
         private FarmAssault assault;
         private UnitCombat[] units = new UnitCombat[0];
+        private GuardCorpse[] corpses = new GuardCorpse[0];
+        private Grave[] graves = new Grave[0];
+        private InfectionAbility infection;
+        private AlarmBell alarm;
+        private bool HasAlarmMessage => alarm && (alarm.IsRaised || alarm.IsPrevented || (alarm.Runner && alarm.Runner.IsRunning));
+        private Rect AlarmPanel => new Rect((Screen.width / Scale - 620) * 0.5f, Screen.height / Scale - 68, 620, 48);
         private float nextRefresh;
         private GUIStyle label;
         private GUIStyle small;
@@ -28,6 +34,8 @@ namespace NecromancerInfection
         private void OnEnable()
         {
             manager = GetComponent<GameManager>();
+            infection = FindFirstObjectByType<InfectionAbility>();
+            alarm = FindFirstObjectByType<AlarmBell>();
             if (!manager) return;
             energy = manager.Necromancer ? manager.Necromancer.Energy : null;
             if (energy) energy.Rewarded += OnReward;
@@ -95,6 +103,8 @@ namespace NecromancerInfection
         private void RefreshUnits()
         {
             units = FindObjectsByType<UnitCombat>(FindObjectsSortMode.None);
+            corpses = FindObjectsByType<GuardCorpse>(FindObjectsSortMode.None);
+            graves = FindObjectsByType<Grave>(FindObjectsSortMode.None);
             HordeSize = 0;
             foreach (var unit in units)
             {
@@ -104,8 +114,12 @@ namespace NecromancerInfection
             }
         }
 
-        public bool ContainsScreenPosition(Vector2 position) => Scale > 0 && Panel.Contains(
-            new Vector2(position.x, Screen.height - position.y) / Scale);
+        public bool ContainsScreenPosition(Vector2 position)
+        {
+            if (Scale <= 0) return false;
+            Vector2 point = new Vector2(position.x, Screen.height - position.y) / Scale;
+            return Panel.Contains(point) || (HasAlarmMessage && AlarmPanel.Contains(point));
+        }
 
         private void OnGUI()
         {
@@ -129,6 +143,16 @@ namespace NecromancerInfection
                 }
                 if (manager.IsFinished) return;
                 GUI.depth = 0;
+                if (HasAlarmMessage)
+                {
+                    var warning = AlarmPanel;
+                    Fill(warning, new Color(0.08f, 0.055f, 0.035f, 0.96f));
+                    GUI.color = alarm.IsPrevented ? new Color(0.6f, 1, 0.4f) : new Color(1, 0.65f, 0.2f);
+                    string message = alarm.IsRaised ? "ТРЕВОГА! Прибыл дополнительный патруль"
+                        : alarm.IsPrevented ? "ТРЕВОГА ПРЕДОТВРАЩЕНА"
+                        : "ЖИТЕЛЬ БЕЖИТ К КОЛОКОЛУ — ЗАРАЗИТЕ ЕГО!";
+                    GUI.Label(new Rect(warning.x + 8, warning.y + 10, warning.width - 16, 28), message, label);
+                }
                 var panel = Panel;
                 Fill(panel, new Color(0.055f, 0.06f, 0.07f, 0.96f));
                 GUI.color = new Color(0.65f, 0.95f, 0.4f);
@@ -151,8 +175,43 @@ namespace NecromancerInfection
                     float width = unit.GetComponent<Necromancer>() ? 64 : 38;
                     Fill(new Rect(point.x - width / 2 - 1, point.y - 1, width + 2, 7), new Color(0.025f, 0.02f, 0.035f, 0.95f));
                     Color tint = unit.GetComponent<UndeadPresence>() ? new Color(0.45f, 0.9f, 0.2f)
-                        : unit.GetComponent<Guard>() ? new Color(0.75f, 0.4f, 0.3f) : new Color(0.7f, 0.66f, 0.49f);
+                        : unit.GetComponent<Guard>() || unit.GetComponent<Crossbowman>()
+                            ? new Color(0.75f, 0.4f, 0.3f) : new Color(0.7f, 0.66f, 0.49f);
                     Fill(new Rect(point.x - width / 2, point.y, width * unit.CurrentHealth / unit.MaxHealth, 5), tint);
+                    if (unit.TryGetComponent<Crossbowman>(out var archer))
+                    {
+                        GUI.color = new Color(1, 0.7f, 0.25f);
+                        string caption = archer.State == Crossbowman.BehaviourState.Aiming
+                            ? $"Выстрел: {archer.AimRemaining:0.0} с" : "Арбалетчик";
+                        GUI.Label(new Rect(point.x - 65, point.y - 23, 130, 22), caption, small);
+                    }
+                    if (unit.TryGetComponent<AlarmRunner>(out var runner) && runner.IsRunning)
+                    {
+                        GUI.color = new Color(1, 0.8f, 0.2f);
+                        GUI.Label(new Rect(point.x - 100, point.y - 23, 200, 22), "БЕЖИТ К КОЛОКОЛУ", small);
+                    }
+                }
+                foreach (var corpse in corpses)
+                {
+                    if (!corpse || corpse.IsConsumed || corpse.gameObject.scene != gameObject.scene || !infection
+                        || !Project(corpse.transform.position + Vector3.up * 0.8f, out var point)) continue;
+                    if (point.y < 195 && (point.x < 365 || Panel.Contains(point))) continue;
+                    GUI.color = infection.Energy && infection.Energy.CanSpend(infection.RaiseGuardCost)
+                        ? new Color(0.85f, 0.7f, 1) : new Color(1, 0.65f, 0.42f);
+                    GUI.Label(new Rect(point.x - 90, point.y - 12, 180, 24),
+                        $"ЛКМ · Поднять: {infection.RaiseGuardCost:0}", small);
+                }
+                foreach (var grave in graves)
+                {
+                    if (!grave || grave.gameObject.scene != gameObject.scene
+                        || !Project(grave.transform.position + Vector3.up * 1.5f, out var point)) continue;
+                    if (point.y < 195 && (point.x < 365 || Panel.Contains(point))) continue;
+                    bool affordable = energy && energy.CanSpend(grave.Cost);
+                    GUI.color = grave.IsConsumed ? Color.gray : affordable
+                        ? new Color(0.85f, 0.7f, 1) : new Color(1, 0.65f, 0.42f);
+                    string text = grave.IsConsumed ? "МОГИЛА ПУСТА" :
+                        $"ЛКМ · {grave.SkeletonCount} скелета: {grave.Cost:0}" + (affordable ? "" : " · мало энергии");
+                    GUI.Label(new Rect(point.x - 160, point.y - 12, 320, 24), text, small);
                 }
                 for (int i = 0; i < rewards.Count; i++)
                 {
