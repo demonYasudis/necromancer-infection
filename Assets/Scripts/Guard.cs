@@ -24,7 +24,11 @@ namespace NecromancerInfection
         public UnitCombat Combat => combat ? combat : combat = GetComponent<UnitCombat>();
         public UnitCombat CurrentTarget => currentTarget;
         public BehaviourState State => state;
-        private void Start() => home = transform.position;
+        private void Start()
+        {
+            movementArea = JourneyRoute.MovementArea(this, movementArea);
+            home = transform.position;
+        }
 
         private void Update()
         {

@@ -52,6 +52,7 @@ namespace NecromancerInfection
 
         public void Initialize(Necromancer leader)
         {
+            movementArea = JourneyRoute.MovementArea(this, movementArea);
             Leader = leader;
             followSlot = attackSlot = -1;
             slotTarget = null;

@@ -41,6 +41,8 @@ namespace NecromancerInfection
             if (hud && hud.isActiveAndEnabled && hud.ContainsScreenPosition(screenPosition)) return false;
             var feedback = FindFirstObjectByType<GameFeedback>();
             if (feedback && feedback.isActiveAndEnabled && feedback.ContainsScreenPosition(screenPosition)) return false;
+            var objective = FindFirstObjectByType<FarmObjectiveHUD>();
+            if (objective && objective.isActiveAndEnabled && objective.ContainsScreenPosition(screenPosition)) return false;
             Ray ray = levelCamera.ScreenPointToRay(screenPosition);
             if (!Physics.Raycast(ray, out RaycastHit hit, levelCamera.farClipPlane,
                 Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide)) return false;

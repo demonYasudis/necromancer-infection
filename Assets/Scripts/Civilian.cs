@@ -114,6 +114,7 @@ namespace NecromancerInfection
 
         private void Start()
         {
+            movementArea = JourneyRoute.MovementArea(this, movementArea);
             home = transform.position;
             ChooseWanderTarget();
         }
