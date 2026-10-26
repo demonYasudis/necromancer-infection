@@ -13,6 +13,7 @@ namespace NecromancerInfection
         [SerializeField, Min(0.1f)] private float activationRadius = 0.75f;
         [SerializeField] private Renderer bellVisual;
         public bool IsRaised { get; private set; }
+        public static event System.Action<AlarmBell> Rang;
         public bool IsPrevented { get; private set; }
         public Transform ArrivalPoint => arrivalPoint ? arrivalPoint : transform;
         public AlarmRunner Runner => runner;
@@ -35,6 +36,7 @@ namespace NecromancerInfection
             offset.y = 0;
             if (offset.sqrMagnitude > activationRadius * activationRadius) return false;
             IsRaised = true;
+            Rang?.Invoke(this);
             Patrol = new GameObject("AlarmPatrol").transform;
             Patrol.SetParent(transform, false);
             foreach (var point in patrolPoints)

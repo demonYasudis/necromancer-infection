@@ -45,6 +45,8 @@ namespace NecromancerInfection
             // Every new scene load starts a fresh attempt, including after defeat.
             Time.timeScale = 1;
             attemptStartedAt = Time.timeAsDouble;
+            // Also supports previously authored scenes without resaving them or their prefabs.
+            if (!GetComponent<GameAudio>()) gameObject.AddComponent<GameAudio>();
             if (levelCamera == null || ground == null || startPoint == null || captureTarget == null || necromancer == null
                 || System.Array.Exists(intermediateWaypoints, point => point == null))
             {

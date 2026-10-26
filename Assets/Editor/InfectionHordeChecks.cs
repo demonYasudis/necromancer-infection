@@ -20,6 +20,7 @@ namespace NecromancerInfection.Editor
         private const string AlarmKey = "NecromancerInfection.AlarmChecksOnly";
         private const string GraveyardKey = "NecromancerInfection.GraveyardChecksOnly";
         private const string AssaultKey = "NecromancerInfection.AssaultChecksOnly";
+        private const string AudioKey = "NecromancerInfection.AudioChecksOnly";
         private static IEnumerator routine;
         private static double resumeAt;
         private static double deadline;
@@ -38,7 +39,7 @@ namespace NecromancerInfection.Editor
         [MenuItem("Necromancer Infection/Run Prototype Checks")]
         public static void Run() => RunChecks(false);
 
-        private static void RunChecks(bool crowdOnly, bool crossbowOnly = false, bool raisedGuardOnly = false, bool alarmOnly = false, bool graveyardOnly = false, bool assaultOnly = false)
+        private static void RunChecks(bool crowdOnly, bool crossbowOnly = false, bool raisedGuardOnly = false, bool alarmOnly = false, bool graveyardOnly = false, bool assaultOnly = false, bool audioOnly = false)
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
                 throw new InvalidOperationException("Stop Play Mode before starting checks.");
@@ -51,6 +52,7 @@ namespace NecromancerInfection.Editor
             SessionState.SetBool(AlarmKey, alarmOnly);
             SessionState.SetBool(GraveyardKey, graveyardOnly);
             SessionState.SetBool(AssaultKey, assaultOnly);
+            SessionState.SetBool(AudioKey, audioOnly);
             SessionState.SetBool(RunningKey, true);
             EditorApplication.EnterPlaymode();
         }
@@ -68,6 +70,15 @@ namespace NecromancerInfection.Editor
         {
             SessionState.SetBool(BatchKey, true);
             RunFarmWaves();
+        }
+
+        [MenuItem("Necromancer Infection/Run Audio Checks")]
+        public static void RunAudio() => RunChecks(false, audioOnly: true);
+
+        public static void RunAudioBatch()
+        {
+            SessionState.SetBool(BatchKey, true);
+            RunAudio();
         }
 
         [MenuItem("Necromancer Infection/Run Crowd Checks")]
@@ -121,7 +132,8 @@ namespace NecromancerInfection.Editor
                 || EditorApplication.isPaused) return;
             if (routine == null)
             {
-                routine = SessionState.GetBool(AssaultKey, false) ? FarmAssaultChecks.Checks(Object.FindFirstObjectByType<GameManager>())
+                routine = SessionState.GetBool(AudioKey, false) ? AudioChecks.Checks()
+                    : SessionState.GetBool(AssaultKey, false) ? FarmAssaultChecks.Checks(Object.FindFirstObjectByType<GameManager>())
                     : SessionState.GetBool(GraveyardKey, false) ? GraveyardChecks.Checks()
                     : SessionState.GetBool(AlarmKey, false) ? AlarmChecks.Checks()
                     : SessionState.GetBool(RaisedGuardKey, false) ? RaisedGuardChecks.Checks()
@@ -139,7 +151,8 @@ namespace NecromancerInfection.Editor
                 if (routine.MoveNext())
                     resumeAt = EditorApplication.timeSinceStartup + (float)routine.Current;
                 else
-                    Finish(true, SessionState.GetBool(AssaultKey, false) ? "All farm wave checks passed."
+                    Finish(true, SessionState.GetBool(AudioKey, false) ? "All audio integration checks passed."
+                        : SessionState.GetBool(AssaultKey, false) ? "All farm wave checks passed."
                         : SessionState.GetBool(GraveyardKey, false) ? "All graveyard checks passed."
                         : SessionState.GetBool(AlarmKey, false)
                         ? "All village alarm checks passed (runner detection/movement, paid infection, death, pause, single patrol, combat and retry)."
@@ -291,6 +304,8 @@ namespace NecromancerInfection.Editor
             while (alarmChecks.MoveNext()) yield return alarmChecks.Current;
             var graveyardChecks = GraveyardChecks.Checks();
             while (graveyardChecks.MoveNext()) yield return graveyardChecks.Current;
+            var audioChecks = AudioChecks.Checks();
+            while (audioChecks.MoveNext()) yield return audioChecks.Current;
         }
 
         private static IEnumerator CombatChecks(Necromancer leader, Zombie prefab)

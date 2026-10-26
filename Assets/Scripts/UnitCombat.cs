@@ -23,6 +23,7 @@ namespace NecromancerInfection
         public bool IsAlive => currentHealth > 0;
         public event Action<UnitCombat> Died;
         public static event Action<UnitCombat> AnyDied;
+        public static event Action<UnitCombat> AnyDamaged;
 
         private void Awake() => currentHealth = maxHealth;
 
@@ -52,6 +53,7 @@ namespace NecromancerInfection
             float incoming = amount * ProtectionArea.IncomingDamageMultiplier(this);
             if (incoming <= 0) return false;
             currentHealth = Mathf.Max(0, currentHealth - incoming);
+            AnyDamaged?.Invoke(this);
             if (IsAlive) return true;
 
             // HP reaches zero synchronously: later hits in this frame cannot kill twice.
