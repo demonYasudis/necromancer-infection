@@ -78,6 +78,14 @@ namespace NecromancerInfection.Editor
                 Require(manager.ElapsedSeconds == finishedTime && finishedTime > 0 && manager.InfectedCount == 2
                     && manager.SurvivingUndead == 2 && pending && leader.transform.position == leaderPosition,
                     "Victory must freeze time, results, movement and pending conversion.");
+                float finishedAssaultClock = assault.AssaultSeconds;
+                Time.timeScale = 8;
+                yield return 0.5f;
+                Require(assault.WavesSpawned == 0 && assault.Reinforcements.childCount == 0
+                    && assault.AssaultSeconds == finishedAssaultClock && !assault.HasPendingWave
+                    && !assault.WarningMarkers.gameObject.activeSelf,
+                    "Victory before the first wave must cancel pending spawns even if time resumes.");
+                Time.timeScale = 0;
                 Require(manager.TryRestartLevel() && !manager.TryRestartLevel(), "Victory retry must accept one request.");
                 yield return 0.3f;
                 manager = Object.FindFirstObjectByType<GameManager>();

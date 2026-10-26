@@ -19,6 +19,7 @@ namespace NecromancerInfection.Editor
         private const string RaisedGuardKey = "NecromancerInfection.RaisedGuardChecksOnly";
         private const string AlarmKey = "NecromancerInfection.AlarmChecksOnly";
         private const string GraveyardKey = "NecromancerInfection.GraveyardChecksOnly";
+        private const string AssaultKey = "NecromancerInfection.AssaultChecksOnly";
         private static IEnumerator routine;
         private static double resumeAt;
         private static double deadline;
@@ -37,7 +38,7 @@ namespace NecromancerInfection.Editor
         [MenuItem("Necromancer Infection/Run Prototype Checks")]
         public static void Run() => RunChecks(false);
 
-        private static void RunChecks(bool crowdOnly, bool crossbowOnly = false, bool raisedGuardOnly = false, bool alarmOnly = false, bool graveyardOnly = false)
+        private static void RunChecks(bool crowdOnly, bool crossbowOnly = false, bool raisedGuardOnly = false, bool alarmOnly = false, bool graveyardOnly = false, bool assaultOnly = false)
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
                 throw new InvalidOperationException("Stop Play Mode before starting checks.");
@@ -49,6 +50,7 @@ namespace NecromancerInfection.Editor
             SessionState.SetBool(RaisedGuardKey, raisedGuardOnly);
             SessionState.SetBool(AlarmKey, alarmOnly);
             SessionState.SetBool(GraveyardKey, graveyardOnly);
+            SessionState.SetBool(AssaultKey, assaultOnly);
             SessionState.SetBool(RunningKey, true);
             EditorApplication.EnterPlaymode();
         }
@@ -57,6 +59,15 @@ namespace NecromancerInfection.Editor
         {
             SessionState.SetBool(BatchKey, true);
             Run();
+        }
+
+        [MenuItem("Necromancer Infection/Run Farm Wave Checks")]
+        public static void RunFarmWaves() => RunChecks(false, assaultOnly: true);
+
+        public static void RunFarmWavesBatch()
+        {
+            SessionState.SetBool(BatchKey, true);
+            RunFarmWaves();
         }
 
         [MenuItem("Necromancer Infection/Run Crowd Checks")]
@@ -110,7 +121,8 @@ namespace NecromancerInfection.Editor
                 || EditorApplication.isPaused) return;
             if (routine == null)
             {
-                routine = SessionState.GetBool(GraveyardKey, false) ? GraveyardChecks.Checks()
+                routine = SessionState.GetBool(AssaultKey, false) ? FarmAssaultChecks.Checks(Object.FindFirstObjectByType<GameManager>())
+                    : SessionState.GetBool(GraveyardKey, false) ? GraveyardChecks.Checks()
                     : SessionState.GetBool(AlarmKey, false) ? AlarmChecks.Checks()
                     : SessionState.GetBool(RaisedGuardKey, false) ? RaisedGuardChecks.Checks()
                     : SessionState.GetBool(CrossbowKey, false) ? CrossbowChecks.Checks()
@@ -127,7 +139,8 @@ namespace NecromancerInfection.Editor
                 if (routine.MoveNext())
                     resumeAt = EditorApplication.timeSinceStartup + (float)routine.Current;
                 else
-                    Finish(true, SessionState.GetBool(GraveyardKey, false) ? "All graveyard checks passed."
+                    Finish(true, SessionState.GetBool(AssaultKey, false) ? "All farm wave checks passed."
+                        : SessionState.GetBool(GraveyardKey, false) ? "All graveyard checks passed."
                         : SessionState.GetBool(AlarmKey, false)
                         ? "All village alarm checks passed (runner detection/movement, paid infection, death, pause, single patrol, combat and retry)."
                         : SessionState.GetBool(RaisedGuardKey, false)
