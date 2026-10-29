@@ -16,9 +16,7 @@ namespace NecromancerInfection
         private GuardCorpse[] corpses = new GuardCorpse[0];
         private Grave[] graves = new Grave[0];
         private InfectionAbility infection;
-        private AlarmBell alarm;
-        private bool HasAlarmMessage => alarm && (alarm.IsRaised || alarm.IsPrevented || (alarm.Runner && alarm.Runner.IsRunning));
-        private Rect AlarmPanel => new Rect((Screen.width / Scale - 620) * 0.5f, Screen.height / Scale - 68, 620, 48);
+        public bool HasAlarmMessage => GetComponent<GameNotifications>() && GetComponent<GameNotifications>().HasMessage;
         private float nextRefresh;
         private GUIStyle label;
         private GUIStyle small;
@@ -26,16 +24,20 @@ namespace NecromancerInfection
         private Vector3 cameraOffset;
         private Camera shakenCamera;
         public int HordeSize { get; private set; }
+        public int ZombieCount { get; private set; }
+        public int HeavyCount { get; private set; }
+        public int SkeletonCount { get; private set; }
         public int RewardLabelCount => rewards.Count;
         public bool IsShaking => Time.unscaledTime < shakeEndsAt;
-        private float Scale => Mathf.Min(Screen.width / 1280f, Screen.height / 720f);
-        private Rect Panel => new Rect(Screen.width / Scale - 278, 18, 260, 96);
+        private float Scale => new HUDLayout(Screen.width, Screen.height).Scale;
+        private GameHUD hud;
 
         private void OnEnable()
         {
             manager = GetComponent<GameManager>();
+            hud = GetComponent<GameHUD>();
             infection = FindFirstObjectByType<InfectionAbility>();
-            alarm = FindFirstObjectByType<AlarmBell>();
+
             if (!manager) return;
             energy = manager.Necromancer ? manager.Necromancer.Energy : null;
             if (energy) energy.Rewarded += OnReward;
@@ -106,10 +108,17 @@ namespace NecromancerInfection
             corpses = FindObjectsByType<GuardCorpse>(FindObjectsSortMode.None);
             graves = FindObjectsByType<Grave>(FindObjectsSortMode.None);
             HordeSize = 0;
+            ZombieCount = HeavyCount = SkeletonCount = 0;
             foreach (var unit in units)
             {
                 if (!unit || unit.gameObject.scene != gameObject.scene || !unit.IsAlive || !unit.isActiveAndEnabled) continue;
-                if (unit.TryGetComponent<Zombie>(out var zombie) && zombie.Leader == manager.Necromancer) HordeSize++;
+                if (unit.TryGetComponent<Zombie>(out var zombie) && zombie.Leader == manager.Necromancer)
+                {
+                    HordeSize++;
+                    if (unit.GetComponent<RaisedGuard>()) HeavyCount++;
+                    else if (unit.GetComponent<Skeleton>()) SkeletonCount++;
+                    else ZombieCount++;
+                }
                 else if (unit.GetComponent<Necromancer>() == manager.Necromancer) HordeSize++;
             }
         }
@@ -118,7 +127,9 @@ namespace NecromancerInfection
         {
             if (Scale <= 0) return false;
             Vector2 point = new Vector2(position.x, Screen.height - position.y) / Scale;
-            return Panel.Contains(point) || (HasAlarmMessage && AlarmPanel.Contains(point));
+            var layout = new HUDLayout(Screen.width, Screen.height);
+            return (hud && hud.IsVisible && layout.Horde.Contains(layout.FromScreen(position, Screen.height)))
+                || (!manager.IsFinished && HasAlarmMessage && layout.Warning.Contains(point));
         }
 
         private void OnGUI()
@@ -126,7 +137,7 @@ namespace NecromancerInfection
             if (!manager || Scale <= 0) return;
             if (label == null)
             {
-                label = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+                label = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = true };
                 small = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleCenter };
             }
             var matrix = GUI.matrix;
@@ -142,36 +153,13 @@ namespace NecromancerInfection
                         new Color(0.6f, 0.3f, 0.9f, (shakeEndsAt - Time.unscaledTime) * 0.3f));
                 }
                 if (manager.IsFinished) return;
+                if (!hud) hud = GetComponent<GameHUD>();
                 GUI.depth = 0;
-                if (HasAlarmMessage)
-                {
-                    var warning = AlarmPanel;
-                    Fill(warning, new Color(0.08f, 0.055f, 0.035f, 0.96f));
-                    GUI.color = alarm.IsPrevented ? new Color(0.6f, 1, 0.4f) : new Color(1, 0.65f, 0.2f);
-                    string message = alarm.IsRaised ? "ТРЕВОГА! Прибыл дополнительный патруль"
-                        : alarm.IsPrevented ? "ТРЕВОГА ПРЕДОТВРАЩЕНА"
-                        : "ЖИТЕЛЬ БЕЖИТ К КОЛОКОЛУ — ЗАРАЗИТЕ ЕГО!";
-                    GUI.Label(new Rect(warning.x + 8, warning.y + 10, warning.width - 16, 28), message, label);
-                }
-                var panel = Panel;
-                Fill(panel, new Color(0.055f, 0.06f, 0.07f, 0.96f));
-                GUI.color = new Color(0.65f, 0.95f, 0.4f);
-                GUI.Label(new Rect(panel.x + 8, 24, 244, 28), $"НЕЖИТЬ: {HordeSize}", label);
-                GUI.color = new Color(0.8f, 0.78f, 0.84f);
-                GUI.Label(new Rect(panel.x + 8, 50, 244, 22), "Орда и некромант", small);
-                var leader = manager.Necromancer;
-                if (leader)
-                {
-                    Fill(new Rect(panel.x + 16, 79, 228, 14), new Color(0.18f, 0.13f, 0.2f));
-                    Fill(new Rect(panel.x + 16, 79, 228 * leader.CurrentHealth / leader.MaxHealth, 14), new Color(0.6f, 0.32f, 0.85f));
-                    GUI.color = Color.white;
-                    GUI.Label(new Rect(panel.x + 16, 76, 228, 22), $"Некромант: {leader.CurrentHealth:0.#} / {leader.MaxHealth} HP", small);
-                }
                 foreach (var unit in units)
                 {
                     if (!unit || unit.gameObject.scene != gameObject.scene || !unit.isActiveAndEnabled || !unit.IsAlive) continue;
                     if (!Project(unit.transform.position + Vector3.up * 2.1f, out var point)) continue;
-                    if (point.y < 150 || Panel.Contains(point) || (point.x < 365 && point.y < 195)) continue;
+                    if (HiddenByHUD(new Rect(point.x - 100, point.y - 23, 200, 31))) continue;
                     float width = unit.GetComponent<Necromancer>() ? 64 : 38;
                     Fill(new Rect(point.x - width / 2 - 1, point.y - 1, width + 2, 7), new Color(0.025f, 0.02f, 0.035f, 0.95f));
                     Color tint = unit.GetComponent<UndeadPresence>() ? new Color(0.45f, 0.9f, 0.2f)
@@ -195,7 +183,7 @@ namespace NecromancerInfection
                 {
                     if (!corpse || corpse.IsConsumed || corpse.gameObject.scene != gameObject.scene || !infection
                         || !Project(corpse.transform.position + Vector3.up * 0.8f, out var point)) continue;
-                    if (point.y < 195 && (point.x < 365 || Panel.Contains(point))) continue;
+                    if (HiddenByHUD(new Rect(point.x - 90, point.y - 12, 180, 24))) continue;
                     GUI.color = infection.Energy && infection.Energy.CanSpend(infection.RaiseGuardCost)
                         ? new Color(0.85f, 0.7f, 1) : new Color(1, 0.65f, 0.42f);
                     GUI.Label(new Rect(point.x - 90, point.y - 12, 180, 24),
@@ -205,7 +193,7 @@ namespace NecromancerInfection
                 {
                     if (!grave || grave.gameObject.scene != gameObject.scene
                         || !Project(grave.transform.position + Vector3.up * 1.5f, out var point)) continue;
-                    if (point.y < 195 && (point.x < 365 || Panel.Contains(point))) continue;
+                    if (HiddenByHUD(new Rect(point.x - 160, point.y - 12, 320, 24))) continue;
                     bool affordable = energy && energy.CanSpend(grave.Cost);
                     GUI.color = grave.IsConsumed ? Color.gray : affordable
                         ? new Color(0.85f, 0.7f, 1) : new Color(1, 0.65f, 0.42f);
@@ -218,12 +206,15 @@ namespace NecromancerInfection
                     var reward = rewards[i];
                     float age = Time.time - reward.BornAt;
                     if (!Project(reward.Position + Vector3.up * age * 0.9f, out var point)) continue;
+                    if (HiddenByHUD(new Rect(point.x - 65, point.y - i % 3 * 14, 130, 26))) continue;
                     GUI.color = new Color(0.66f, 1, 0.3f, Mathf.Clamp01((1.2f - age) * 3));
                     GUI.Label(new Rect(point.x - 65, point.y - i % 3 * 14, 130, 26), $"+{reward.Amount:0.#} энергии", label);
                 }
             }
             finally { GUI.matrix = matrix; GUI.color = color; GUI.depth = depth; }
         }
+
+        private bool HiddenByHUD(Rect rect) => hud && hud.OverlapsWorldLabel(rect, Scale);
 
         private bool Project(Vector3 world, out Vector2 position)
         {

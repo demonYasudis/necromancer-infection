@@ -70,6 +70,7 @@ namespace NecromancerInfection
 
         private void MoveTowards(Vector3 destination, float stoppingDistance)
         {
+            if (Combat.IsMeleeContact) return;
             destination.y = transform.position.y;
             Vector3 offset = destination - transform.position;
             if (offset.magnitude <= stoppingDistance) return;

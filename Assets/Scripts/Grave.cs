@@ -13,13 +13,19 @@ namespace NecromancerInfection
         public int SkeletonCount => spawnPoints == null ? 0 : spawnPoints.Length;
         public bool IsConsumed { get; private set; }
 
+        public string UnavailableReason(Necromancer leader)
+        {
+            if (IsConsumed) return "Могила пуста";
+            if (!isActiveAndEnabled || !skeletonPrefab || !leader || !leader.gameObject.activeInHierarchy
+                || !leader.Combat.IsAlive || leader.gameObject.scene != gameObject.scene) return "Поднятие недоступно";
+            if (!skeletonPrefab.GetComponent<Skeleton>() || SkeletonCount == 0) return "Поднятие недоступно";
+            foreach (var point in spawnPoints) if (!point) return "Поднятие недоступно";
+            return null;
+        }
+
         public bool TryRaise(Necromancer leader)
         {
-            if (!isActiveAndEnabled || IsConsumed || Time.timeScale <= 0 || !skeletonPrefab
-                || !skeletonPrefab.GetComponent<Skeleton>() || SkeletonCount == 0
-                || !leader || !leader.gameObject.activeInHierarchy || !leader.Combat.IsAlive
-                || leader.gameObject.scene != gameObject.scene || !leader.Energy.CanSpend(cost)) return false;
-            foreach (var point in spawnPoints) if (!point) return false;
+            if (Time.timeScale <= 0 || UnavailableReason(leader) != null || !leader.Energy.CanSpend(cost)) return false;
             IsConsumed = true;
             if (!leader.Energy.TrySpend(cost)) { IsConsumed = false; return false; }
             if (availableMarker) availableMarker.SetActive(false);
@@ -27,6 +33,7 @@ namespace NecromancerInfection
             {
                 var unit = Instantiate(skeletonPrefab, point.position, point.rotation);
                 unit.name = "Skeleton";
+                unit.GetComponent<CombatMotion>().BeginRising();
                 unit.Initialize(leader);
             }
             return true;

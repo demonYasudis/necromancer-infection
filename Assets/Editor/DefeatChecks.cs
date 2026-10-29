@@ -36,17 +36,20 @@ namespace NecromancerInfection.Editor
             settings.ApplyModifiedPropertiesWithoutUndo();
             energy.TrySpend(20);
             int deaths = 0;
+            bool repeatedDamageRejected = false;
             var leaderCombat = leader.Combat;
-            leaderCombat.Died += attacker => deaths++;
+            leaderCombat.Died += attacker => { deaths++; repeatedDamageRejected = !leaderCombat.TakeDamage(1000); };
             leaderCombat.TakeDamage(Mathf.CeilToInt(leader.CurrentHealth) - 1);
             Require(!manager.IsDefeated && leader.Combat.IsAlive, "Low but positive necromancer HP must not trigger defeat.");
-            Require(defender.Combat.TryAttack(leaderCombat) && manager.IsDefeated && Time.timeScale == 0,
+            Require(defender.Combat.TryAttack(leaderCombat) && !manager.IsDefeated, "Lethal swing must begin with a windup.");
+            yield return defender.Combat.MeleeWindup + 0.05f;
+            Require(manager.IsDefeated && Time.timeScale == 0,
                 "A real lethal guard strike must synchronously end the attempt and freeze game time.");
-            Require(deaths == 1 && !leaderCombat.TakeDamage(1000), "Defeat must only be signaled once.");
+            Require(deaths == 1 && repeatedDamageRejected, "Defeat must only be signaled once.");
             Vector3 humanPosition = wandering.transform.position;
             Vector3 zombiePosition = follower.transform.position;
             float guardHP = defender.Combat.CurrentHealth;
-            float remainingEnergy = energy.Current;
+            float remainingEnergy = energy ? energy.Current : 0;
             float frozenTime = Time.time;
             Require(!defender.Combat.TakeDamage(10) && defender.Combat.CurrentHealth == guardHP,
                 "Even direct damage must be blocked after defeat.");

@@ -36,7 +36,7 @@ namespace NecromancerInfection
         private int wavesSpawned;
         private Transform warnings;
         private Material warningMaterial;
-        private GUIStyle warningStyle;
+
 
         public float CorruptionDuration => corruptionDuration;
         public float CorruptionSeconds => corruptionSeconds;
@@ -51,6 +51,16 @@ namespace NecromancerInfection
         public float NextWaveSeconds => HasPendingWave ? Mathf.Max(0, waves[wavesSpawned].arrivalSeconds - assaultSeconds) : 0;
         public string NextWaveDirection => HasPendingWave ? waves[wavesSpawned].direction : "";
         public int NextWaveSize => HasPendingWave ? waves[wavesSpawned].pointIndices.Length : 0;
+        public Vector3 NextWavePosition
+        {
+            get
+            {
+                if (!HasPendingWave) return transform.position;
+                Vector3 center = Vector3.zero;
+                foreach (int index in waves[wavesSpawned].pointIndices) center += reinforcementPoints[index].position;
+                return center / NextWaveSize;
+            }
+        }
         public Transform WarningMarkers => warnings;
         public GameObject ClosedGate => closedGate;
         public Transform Reinforcements { get; private set; }
@@ -175,32 +185,6 @@ namespace NecromancerInfection
                     ring.SetPosition(i, new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * 0.7f);
                 }
             }
-        }
-
-        private void OnGUI()
-        {
-            if (!HasPendingWave || !target.isActiveAndEnabled || !manager.LevelCamera) return;
-            if (warningStyle == null) warningStyle = new GUIStyle(GUI.skin.box) {
-                fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = new Color(1, 0.7f, 0.3f) }
-            };
-            float scale = Mathf.Min(Screen.width / 1280f, Screen.height / 720f);
-            if (scale <= 0) return;
-            var original = GUI.matrix;
-            try
-            {
-                GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1));
-                Vector3 center = Vector3.zero;
-                foreach (int index in waves[wavesSpawned].pointIndices) center += reinforcementPoints[index].position;
-                center /= NextWaveSize;
-                Vector3 screen = manager.LevelCamera.WorldToScreenPoint(center + Vector3.up * 1.5f);
-                float width = Screen.width / scale, height = Screen.height / scale;
-                float x = screen.z > 0 ? Mathf.Clamp(screen.x / scale - 140, 8, width - 288) : width - 288;
-                float y = screen.z > 0 ? Mathf.Clamp((Screen.height - screen.y) / scale - 50, 155, height - 110) : 160;
-                GUI.Box(new Rect(x, y, 280, 64),
-                    $"ВОЛНА {wavesSpawned + 1}/{WaveCount} · {NextWaveDirection}\n{NextWaveSize} стражника · через {NextWaveSeconds:0.0} сек", warningStyle);
-            }
-            finally { GUI.matrix = original; }
         }
 
         private void OnValidate() => corruptionDuration = Mathf.Max(0.1f, corruptionDuration);

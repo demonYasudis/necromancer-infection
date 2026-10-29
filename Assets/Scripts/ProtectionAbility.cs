@@ -30,22 +30,25 @@ namespace NecromancerInfection
 
         public bool TryCastAtScreenPosition(Vector2 screenPosition)
         {
-            if (!isActiveAndEnabled || Time.timeScale <= 0 || !levelCamera || !ground || !areaPrefab
-                || !Energy || !Energy.CanSpend(energyCost) || screenPosition.x < 0 || screenPosition.y < 0
-                || screenPosition.x >= Screen.width || screenPosition.y >= Screen.height) return false;
-            var hud = GetComponent<DarkEnergyHUD>();
-            if (hud && hud.isActiveAndEnabled && hud.ContainsScreenPosition(screenPosition)) return false;
-            var feedback = FindFirstObjectByType<GameFeedback>();
-            if (feedback && feedback.isActiveAndEnabled && feedback.ContainsScreenPosition(screenPosition)) return false;
-            var objective = FindFirstObjectByType<FarmObjectiveHUD>();
-            if (objective && objective.isActiveAndEnabled && objective.ContainsScreenPosition(screenPosition)) return false;
+            if (Time.timeScale <= 0 || !TryGetPlacement(screenPosition, out var point, out var reason)
+                || reason != null || !Energy.TrySpend(energyCost)) return false;
+            var area = Instantiate(areaPrefab, point, Quaternion.identity);
+            area.name = "ProtectionArea";
+            return true;
+        }
+
+        public bool TryGetPlacement(Vector2 screenPosition, out Vector3 point, out string reason)
+        {
+            point = default;
+            reason = null;
+            if (!isActiveAndEnabled || !levelCamera || !ground || !areaPrefab || !Energy
+                || !necromancer || !necromancer.Combat.IsAlive || AbilityPointer.IsBlocked(screenPosition)) return false;
             Ray ray = levelCamera.ScreenPointToRay(screenPosition);
             if (!Physics.Raycast(ray, out RaycastHit hit, levelCamera.farClipPlane,
                 Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)
                 || hit.collider != ground || Vector3.Dot(hit.normal, Vector3.up) < 0.5f) return false;
-            if (!Energy.TrySpend(energyCost)) return false;
-            var area = Instantiate(areaPrefab, hit.point, Quaternion.identity);
-            area.name = "ProtectionArea";
+            point = hit.point;
+            if (!Energy.CanSpend(energyCost)) reason = "Недостаточно энергии";
             return true;
         }
 

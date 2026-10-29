@@ -16,6 +16,11 @@ namespace NecromancerInfection
         private Mesh disc;
         private LineRenderer timerArc;
         private LineRenderer ring;
+        private LineRenderer[] runes;
+        private Color[] discColors;
+        private float createdAt;
+        public float RevealProgress => Mathf.Clamp01((Time.time - createdAt) / 0.35f);
+        public float VisualStrength => Mathf.Clamp01(RemainingFraction * duration / Mathf.Min(1, duration));
         private readonly Vector3[] arcPoints = new Vector3[97];
 
         public float Radius => radius;
@@ -26,12 +31,20 @@ namespace NecromancerInfection
 
         private void Awake()
         {
-            expiresAt = Time.time + duration;
+            createdAt = Time.time;
+            expiresAt = createdAt + duration;
             BuildVisual();
         }
 
-        private void OnEnable() => Active.Add(this);
-        private void OnDisable() => Active.Remove(this);
+        private void OnEnable() { Active.Add(this); SetVisualEnabled(true); }
+        private void OnDisable() { Active.Remove(this); SetVisualEnabled(false); }
+        private void SetVisualEnabled(bool visible)
+        {
+            if (ring) ring.enabled = visible;
+            if (timerArc) timerArc.enabled = visible;
+            if (runes != null) foreach (var rune in runes) rune.enabled = visible;
+            GetComponent<MeshRenderer>().enabled = visible;
+        }
         private void OnDestroy()
         {
             Active.Remove(this);
@@ -40,17 +53,27 @@ namespace NecromancerInfection
 
         private void Update()
         {
-            if (Time.time >= expiresAt) Destroy(gameObject);
+            if (Time.time >= expiresAt) { SetVisualEnabled(false); Destroy(gameObject); return; }
             UpdateVisual();
         }
 
         private void UpdateVisual()
         {
             float remaining = RemainingFraction;
-            float alpha = Mathf.Clamp01(remaining * 5);
+            float alpha = VisualStrength;
             float pulse = 0.75f + Mathf.Sin((duration - (expiresAt - Time.time)) * 5) * 0.15f;
             ring.startColor = ring.endColor = new Color(1, 1, 1, alpha * pulse);
             timerArc.startColor = timerArc.endColor = new Color(1, 1, 1, alpha);
+            timerArc.enabled = IsActive && remaining > 0;
+            for (int i = 0; i < runes.Length; i++)
+            {
+                float reveal = Mathf.SmoothStep(0, 1, Mathf.Clamp01(RevealProgress * 1.4f - i / 12f * 0.4f));
+                runes[i].transform.localScale = Vector3.one * Mathf.Lerp(0.2f, 1, reveal);
+                runes[i].startColor = runes[i].endColor = new Color(1, 1, 1, alpha * reveal);
+            }
+            for (int i = 0; i < discColors.Length; i++)
+                discColors[i] = new Color(1, 1, 1, (i == 0 ? 0.2f : 0.08f) * alpha);
+            disc.colors = discColors;
             int count = Mathf.Max(2, Mathf.CeilToInt(96 * remaining) + 1);
             timerArc.positionCount = count;
             for (int i = 0; i < count; i++)
@@ -63,7 +86,8 @@ namespace NecromancerInfection
 
         public static float IncomingDamageMultiplier(UnitCombat target)
         {
-            if (!target || (!target.GetComponent<Zombie>() && !target.GetComponent<Necromancer>())) return 1;
+            if (!target || !target.isActiveAndEnabled || !target.IsAlive
+                || (!target.GetComponent<Zombie>() && !target.GetComponent<Necromancer>())) return 1;
             float multiplier = 1;
             foreach (var area in Active)
             {
@@ -106,6 +130,7 @@ namespace NecromancerInfection
             disc = new Mesh { name = "ProtectionDisc" };
             disc.vertices = vertices;
             disc.colors = colors;
+            discColors = colors;
             disc.triangles = triangles;
             disc.RecalculateBounds();
             GetComponent<MeshFilter>().sharedMesh = disc;
@@ -119,6 +144,25 @@ namespace NecromancerInfection
             timerArc.widthMultiplier = 0.14f;
             timerArc.shadowCastingMode = ShadowCastingMode.Off;
             timerArc.receiveShadows = false;
+            runes = new LineRenderer[12];
+            for (int i = 0; i < runes.Length; i++)
+            {
+                var rune = new GameObject("ProtectionRune_" + i).AddComponent<LineRenderer>();
+                rune.transform.SetParent(transform, false);
+                float angle = i * Mathf.PI * 2 / runes.Length;
+                rune.transform.localPosition = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * radius * 0.75f;
+                rune.transform.localRotation = Quaternion.Euler(0, -angle * Mathf.Rad2Deg, 0);
+                rune.useWorldSpace = false;
+                rune.sharedMaterial = ring.sharedMaterial;
+                rune.widthMultiplier = 0.055f;
+                rune.shadowCastingMode = ShadowCastingMode.Off;
+                rune.receiveShadows = false;
+                rune.positionCount = 5;
+                float size = Mathf.Min(0.28f, radius * 0.1f);
+                rune.SetPositions(new[] { new Vector3(-size, 0.08f, size), new Vector3(size, 0.08f, 0),
+                    new Vector3(-size, 0.08f, -size), new Vector3(0, 0.08f, 0), new Vector3(size, 0.08f, 0) });
+                runes[i] = rune;
+            }
             UpdateVisual();
         }
 

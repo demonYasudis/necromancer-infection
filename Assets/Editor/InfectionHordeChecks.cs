@@ -21,6 +21,12 @@ namespace NecromancerInfection.Editor
         private const string GraveyardKey = "NecromancerInfection.GraveyardChecksOnly";
         private const string AssaultKey = "NecromancerInfection.AssaultChecksOnly";
         private const string AudioKey = "NecromancerInfection.AudioChecksOnly";
+        private const string MeleeKey = "NecromancerInfection.MeleeChecksOnly";
+        private const string WalkKey = "NecromancerInfection.WalkChecksOnly";
+        private const string HUDKey = "NecromancerInfection.HUDChecksOnly";
+        private const string TransformationKey = "NecromancerInfection.TransformationChecksOnly";
+        private const string ProtectionVisualKey = "NecromancerInfection.ProtectionVisualChecksOnly";
+        private const string NotificationKey = "NecromancerInfection.NotificationChecksOnly";
         private static IEnumerator routine;
         private static double resumeAt;
         private static double deadline;
@@ -39,7 +45,7 @@ namespace NecromancerInfection.Editor
         [MenuItem("Necromancer Infection/Run Prototype Checks")]
         public static void Run() => RunChecks(false);
 
-        private static void RunChecks(bool crowdOnly, bool crossbowOnly = false, bool raisedGuardOnly = false, bool alarmOnly = false, bool graveyardOnly = false, bool assaultOnly = false, bool audioOnly = false)
+        private static void RunChecks(bool crowdOnly, bool crossbowOnly = false, bool raisedGuardOnly = false, bool alarmOnly = false, bool graveyardOnly = false, bool assaultOnly = false, bool audioOnly = false, bool meleeOnly = false, bool walkOnly = false, bool hudOnly = false, bool transformationOnly = false, bool protectionVisualOnly = false, bool notificationOnly = false)
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
                 throw new InvalidOperationException("Stop Play Mode before starting checks.");
@@ -53,6 +59,12 @@ namespace NecromancerInfection.Editor
             SessionState.SetBool(GraveyardKey, graveyardOnly);
             SessionState.SetBool(AssaultKey, assaultOnly);
             SessionState.SetBool(AudioKey, audioOnly);
+            SessionState.SetBool(MeleeKey, meleeOnly);
+            SessionState.SetBool(WalkKey, walkOnly);
+            SessionState.SetBool(HUDKey, hudOnly);
+            SessionState.SetBool(TransformationKey, transformationOnly);
+            SessionState.SetBool(ProtectionVisualKey, protectionVisualOnly);
+            SessionState.SetBool(NotificationKey, notificationOnly);
             SessionState.SetBool(RunningKey, true);
             EditorApplication.EnterPlaymode();
         }
@@ -79,6 +91,60 @@ namespace NecromancerInfection.Editor
         {
             SessionState.SetBool(BatchKey, true);
             RunAudio();
+        }
+
+        [MenuItem("Necromancer Infection/Run Melee Checks")]
+        public static void RunMelee() => RunChecks(false, meleeOnly: true);
+
+        public static void RunMeleeBatch()
+        {
+            SessionState.SetBool(BatchKey, true);
+            RunMelee();
+        }
+
+        [MenuItem("Necromancer Infection/Run Walk Checks")]
+        public static void RunWalk() => RunChecks(false, walkOnly: true);
+
+        public static void RunWalkBatch()
+        {
+            SessionState.SetBool(BatchKey, true);
+            RunWalk();
+        }
+
+        [MenuItem("Necromancer Infection/Run HUD Checks")]
+        public static void RunHUD() => RunChecks(false, hudOnly: true);
+
+        public static void RunHUDBatch()
+        {
+            SessionState.SetBool(BatchKey, true);
+            RunHUD();
+        }
+
+        [MenuItem("Necromancer Infection/Run Transformation Checks")]
+        public static void RunTransformation() => RunChecks(false, transformationOnly: true);
+
+        public static void RunTransformationBatch()
+        {
+            SessionState.SetBool(BatchKey, true);
+            RunTransformation();
+        }
+
+        [MenuItem("Necromancer Infection/Run Protection Visual Checks")]
+        public static void RunProtectionVisual() => RunChecks(false, protectionVisualOnly: true);
+
+        public static void RunProtectionVisualBatch()
+        {
+            SessionState.SetBool(BatchKey, true);
+            RunProtectionVisual();
+        }
+
+        [MenuItem("Necromancer Infection/Run Notification Checks")]
+        public static void RunNotifications() => RunChecks(false, notificationOnly: true);
+
+        public static void RunNotificationsBatch()
+        {
+            SessionState.SetBool(BatchKey, true);
+            RunNotifications();
         }
 
         [MenuItem("Necromancer Infection/Run Crowd Checks")]
@@ -132,7 +198,13 @@ namespace NecromancerInfection.Editor
                 || EditorApplication.isPaused) return;
             if (routine == null)
             {
-                routine = SessionState.GetBool(AudioKey, false) ? AudioChecks.Checks()
+                routine = SessionState.GetBool(NotificationKey, false) ? NotificationChecks.Checks()
+                    : SessionState.GetBool(ProtectionVisualKey, false) ? ProtectionVisualChecks.Checks()
+                    : SessionState.GetBool(TransformationKey, false) ? TransformationChecks.Checks()
+                    : SessionState.GetBool(HUDKey, false) ? HUDChecks.Checks()
+                    : SessionState.GetBool(WalkKey, false) ? WalkChecks.Checks()
+                    : SessionState.GetBool(MeleeKey, false) ? MeleeChecks.Checks()
+                    : SessionState.GetBool(AudioKey, false) ? AudioChecks.Checks()
                     : SessionState.GetBool(AssaultKey, false) ? FarmAssaultChecks.Checks(Object.FindFirstObjectByType<GameManager>())
                     : SessionState.GetBool(GraveyardKey, false) ? GraveyardChecks.Checks()
                     : SessionState.GetBool(AlarmKey, false) ? AlarmChecks.Checks()
@@ -151,7 +223,13 @@ namespace NecromancerInfection.Editor
                 if (routine.MoveNext())
                     resumeAt = EditorApplication.timeSinceStartup + (float)routine.Current;
                 else
-                    Finish(true, SessionState.GetBool(AudioKey, false) ? "All audio integration checks passed."
+                    Finish(true, SessionState.GetBool(NotificationKey, false) ? "All notification integration checks passed."
+                        : SessionState.GetBool(ProtectionVisualKey, false) ? "All protection visual integration checks passed."
+                        : SessionState.GetBool(TransformationKey, false) ? "All transformation integration checks passed."
+                        : SessionState.GetBool(HUDKey, false) ? "All HUD integration checks passed."
+                        : SessionState.GetBool(WalkKey, false) ? "All walk integration checks passed."
+                        : SessionState.GetBool(MeleeKey, false) ? "All melee integration checks passed."
+                        : SessionState.GetBool(AudioKey, false) ? "All audio integration checks passed."
                         : SessionState.GetBool(AssaultKey, false) ? "All farm wave checks passed."
                         : SessionState.GetBool(GraveyardKey, false) ? "All graveyard checks passed."
                         : SessionState.GetBool(AlarmKey, false)
@@ -195,7 +273,32 @@ namespace NecromancerInfection.Editor
             Vector2 ground = manager.LevelCamera.WorldToScreenPoint(new Vector3(-15, 0, -8));
             Require(!ability.TryInfectAtScreenPosition(ground), "Ground click must do nothing.");
             Vector2 screen = manager.LevelCamera.WorldToScreenPoint(subject.transform.position + Vector3.up * 0.75f);
+            Require(ability.TryGetTarget(screen, out var hovered, out var action, out var price, out var unavailable)
+                && hovered == subject.transform && price == ability.InfectionCost && unavailable == null,
+                "Hover must describe the same civilian selected by the click.");
+            Require(leader.Energy.Current == 100 && subject.State != Civilian.BehaviourState.Infected,
+                "Repeated hover queries must not spend energy or infect.");
+            leader.Energy.TrySpend(100);
+            Require(ability.TryGetTarget(screen, out _, out _, out _, out unavailable) && !string.IsNullOrEmpty(unavailable)
+                && !ability.TryInfectAtScreenPosition(screen), "Unaffordable hover must explain why click is rejected.");
+            leader.Energy.Restore(100);
+            var protection = Object.FindFirstObjectByType<ProtectionAbility>();
+            int areas = Object.FindObjectsByType<ProtectionArea>(FindObjectsSortMode.None).Length;
+            Require(protection.TryGetPlacement(ground, out var placement, out unavailable) && unavailable == null
+                && Object.FindObjectsByType<ProtectionArea>(FindObjectsSortMode.None).Length == areas,
+                "Ground preview must resolve a cast position without creating protection.");
+            Require(!protection.TryGetPlacement(screen, out _, out _), "A civilian must occlude the ground preview.");
+            Vector2 hudPoint = new Vector2(30, Screen.height - 30);
+            Require(!ability.TryGetTarget(hudPoint, out _, out _, out _, out _)
+                && !protection.TryGetPlacement(hudPoint, out _, out _), "HUD must reject both preview queries.");
+            Time.timeScale = 0;
+            Require(!ability.TryInfectAtScreenPosition(screen) && !protection.TryCastAtScreenPosition(ground),
+                "Paused clicks cannot apply a previewed action.");
+            Time.timeScale = 1;
+            Debug.Log("PASS: hover/click agreement, textual energy rejection, non-mutating placement, occlusion, HUD and pause.");
             Require(ability.TryInfectAtScreenPosition(screen), "Raycast must select a human and start infection.");
+            Require(ability.TryGetTarget(screen, out _, out _, out _, out unavailable) && unavailable != null,
+                "Already infected hover must include a textual rejection.");
             Require(!ability.TryInfectAtScreenPosition(screen), "A second click must reject the infected human.");
             Require(subject.State == Civilian.BehaviourState.Infected, "Infection state must be immediate.");
             Vector3 infectionPosition = subject.transform.position;
@@ -306,6 +409,18 @@ namespace NecromancerInfection.Editor
             while (graveyardChecks.MoveNext()) yield return graveyardChecks.Current;
             var audioChecks = AudioChecks.Checks();
             while (audioChecks.MoveNext()) yield return audioChecks.Current;
+            var meleeChecks = MeleeChecks.Checks();
+            while (meleeChecks.MoveNext()) yield return meleeChecks.Current;
+            var walkChecks = WalkChecks.Checks();
+            while (walkChecks.MoveNext()) yield return walkChecks.Current;
+            var hudChecks = HUDChecks.Checks();
+            while (hudChecks.MoveNext()) yield return hudChecks.Current;
+            var transformationChecks = TransformationChecks.Checks();
+            while (transformationChecks.MoveNext()) yield return transformationChecks.Current;
+            var protectionVisualChecks = ProtectionVisualChecks.Checks();
+            while (protectionVisualChecks.MoveNext()) yield return protectionVisualChecks.Current;
+            var notificationChecks = NotificationChecks.Checks();
+            while (notificationChecks.MoveNext()) yield return notificationChecks.Current;
         }
 
         private static IEnumerator CombatChecks(Necromancer leader, Zombie prefab)
@@ -334,7 +449,10 @@ namespace NecromancerInfection.Editor
             Require(!attacker.Combat.TryAttack(victim.Combat) && victim.Combat.CurrentHealth == 30,
                 "Out-of-range attack must neither hit nor reserve cooldown.");
             victim.transform.position = new Vector3(0.8f, 0, 0);
-            Require(attacker.Combat.TryAttack(victim.Combat) && victim.Combat.CurrentHealth == 20,
+            Require(attacker.Combat.TryAttack(victim.Combat) && victim.Combat.CurrentHealth == 30,
+                "Windup must not damage the target early.");
+            yield return attacker.Combat.MeleeWindup + 0.03f;
+            Require(victim.Combat.CurrentHealth == 20,
                 "An in-range hit must deal exactly 10 damage.");
             Require(!attacker.Combat.TryAttack(victim.Combat), "Repeated attack in the same frame must fail.");
             yield return attacker.Combat.AttackCooldown * 0.4f;
@@ -344,16 +462,28 @@ namespace NecromancerInfection.Editor
             yield return attacker.Combat.AttackCooldown * 0.7f;
             Require(!attacker.Combat.TryAttack(victim.Combat), "Ready attacker still cannot hit beyond its range.");
             victim.transform.position = new Vector3(0.8f, 0, 0);
-            Require(attacker.Combat.TryAttack(victim.Combat) && victim.Combat.CurrentHealth == 10,
+            Require(attacker.Combat.TryAttack(victim.Combat), "Second swing must start after cooldown.");
+            yield return attacker.Combat.MeleeWindup + 0.03f;
+            Require(victim.Combat.CurrentHealth == 10,
                 "Returning to range after cooldown must allow the second hit.");
             alternate.gameObject.SetActive(true);
             Require(!attacker.Combat.TryAttack(alternate.Combat), "Switching targets must not bypass attacker cooldown.");
             alternate.gameObject.SetActive(false);
             yield return attacker.Combat.AttackCooldown + 0.05f;
             var victimCombat = victim.Combat;
-            Require(attacker.Combat.TryAttack(victimCombat) && !victimCombat.IsAlive
-                && !victim.IsAvailableTarget, "The third hit must kill and immediately invalidate the human.");
-            Require(!secondAttacker.Combat.TryAttack(victimCombat) && !victimCombat.TakeDamage(100, secondAttacker.Combat)
+            Require(attacker.Combat.TryAttack(victimCombat), "Third swing must start.");
+            // Check inside the callback, before Unity destroys the target at end of frame.
+            bool invalidatedOnDeath = false;
+            bool repeatedLethalRejected = false;
+            victimCombat.Died += source =>
+            {
+                invalidatedOnDeath = !victimCombat.IsAlive && !victim.IsAvailableTarget;
+                repeatedLethalRejected = !secondAttacker.Combat.TryAttack(victimCombat)
+                    && !victimCombat.TakeDamage(100, secondAttacker.Combat);
+            };
+            yield return attacker.Combat.MeleeWindup + 0.03f;
+            Require(invalidatedOnDeath && deaths == 1, "Third impact must invalidate the human immediately.");
+            Require(repeatedLethalRejected && !secondAttacker.Combat.TryAttack(victimCombat)
                 && deaths == 1, "Additional lethal hits must not fire death or conversion twice.");
             yield return 0.1f;
             Require(!victim && Object.FindObjectsByType<Zombie>(FindObjectsSortMode.None).Length == 3,
@@ -449,6 +579,13 @@ namespace NecromancerInfection.Editor
             SessionState.SetBool(RaisedGuardKey, false);
             SessionState.SetBool(AlarmKey, false);
             SessionState.SetBool(GraveyardKey, false);
+            SessionState.SetBool(MeleeKey, false);
+            SessionState.SetBool(WalkKey, false);
+            SessionState.SetBool(HUDKey, false);
+            SessionState.SetBool(TransformationKey, false);
+            SessionState.SetBool(ProtectionVisualKey, false);
+            SessionState.SetBool(NotificationKey, false);
+            SessionState.SetBool(AudioKey, false);
             Application.logMessageReceived -= WatchErrors;
             routine = null;
             runtimeError = null;

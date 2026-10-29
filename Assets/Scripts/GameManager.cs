@@ -47,6 +47,9 @@ namespace NecromancerInfection
             attemptStartedAt = Time.timeAsDouble;
             // Also supports previously authored scenes without resaving them or their prefabs.
             if (!GetComponent<GameAudio>()) gameObject.AddComponent<GameAudio>();
+            if (!GetComponent<AbilityPreview>()) gameObject.AddComponent<AbilityPreview>();
+            if (!GetComponent<GameHUD>()) gameObject.AddComponent<GameHUD>();
+            if (!GetComponent<GameNotifications>()) gameObject.AddComponent<GameNotifications>();
             if (levelCamera == null || ground == null || startPoint == null || captureTarget == null || necromancer == null
                 || System.Array.Exists(intermediateWaypoints, point => point == null))
             {

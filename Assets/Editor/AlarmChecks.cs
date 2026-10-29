@@ -33,7 +33,7 @@ namespace NecromancerInfection.Editor
             Vector2 screen = manager.LevelCamera.WorldToScreenPoint(runner.transform.position + Vector3.up * 1.1f);
             Require(ability.TryInfectAtScreenPosition(screen) && manager.Necromancer.Energy.Current == 85
                 && bell.IsPrevented && !runner.IsRunning,
-                "Actual paid LMB infection must synchronously stop the runner and prevent alarm.");
+                $"Actual paid LMB infection must synchronously stop the runner and prevent alarm. Pointer={screen}, viewport={Screen.width}x{Screen.height}, blocked={AbilityPointer.IsBlocked(screen)}, runner={runner.transform.position}, energy={manager.Necromancer.Energy.Current}.");
             yield return 3.5f;
             Require(!runner && !bell.IsRaised && !bell.Patrol && manager.InfectedCount == 1,
                 "The infected runner must become a normal zombie, with no delayed patrol or ghost alarm.");
@@ -67,6 +67,9 @@ namespace NecromancerInfection.Editor
             while (!bell.IsRaised && EditorApplication.timeSinceStartup < deadline) yield return 0.1f;
             Require(bell.IsRaised && !bell.IsPrevented && bell.Patrol && bell.Patrol.childCount == 3,
                 "An uninterrupted actual run must reach the authored bell and summon three guards.");
+            yield return 0.05f;
+            Require(manager.GetComponent<GameNotifications>().CurrentKey == "alarm",
+                "The real bell must replace its messenger warning with one patrol-arrival notice.");
             Require(!bell.TryRaise(runner), "A raised alarm must reject repeat ringing.");
             yield return 0.3f;
             Require(bell.Patrol.childCount == 3, "Repeated updates must not summon duplicate patrols.");

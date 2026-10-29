@@ -98,13 +98,17 @@ namespace NecromancerInfection.Editor
             defender = Object.Instantiate(guardPrefab, new Vector3(-1.8f, 0, -3), Quaternion.identity).GetComponent<Guard>();
             defender.enabled = false;
             float health = zombie.Combat.CurrentHealth;
-            Require(defender.Combat.TryAttack(zombie.Combat) && zombie.Combat.CurrentHealth == health - 15,
+            Require(defender.Combat.TryAttack(zombie.Combat), "Defender must start a melee swing.");
+            yield return defender.Combat.MeleeWindup + 0.05f;
+            Require(zombie.Combat.CurrentHealth == health - 15,
                 "A raised guard must be a valid target for living defenders.");
             var protection = Object.FindFirstObjectByType<ProtectionAbility>();
             var area = Object.Instantiate(protection.AreaPrefab, zombie.transform.position, Quaternion.identity);
             yield return 1.05f;
             health = zombie.Combat.CurrentHealth;
-            Require(defender.Combat.TryAttack(zombie.Combat) && zombie.Combat.CurrentHealth == health - 7.5f,
+            Require(defender.Combat.TryAttack(zombie.Combat), "Defender must start a protected melee swing.");
+            yield return defender.Combat.MeleeWindup + 0.05f;
+            Require(zombie.Combat.CurrentHealth == health - 7.5f,
                 "Protection must halve real melee damage on heavy undead too.");
             settings = new SerializedObject(defender);
             settings.FindProperty("necromancerPriorityRadius").floatValue = 0.1f;

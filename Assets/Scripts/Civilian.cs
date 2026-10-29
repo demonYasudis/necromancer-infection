@@ -51,6 +51,7 @@ namespace NecromancerInfection
         {
             if (!IsAvailableTarget || !zombiePrefab || !leader || !leader.Combat.IsAlive || delay <= 0) return false;
             state = BehaviourState.Infected;
+            GetComponent<CombatMotion>().BeginInfection(delay);
             InfectionStarted?.Invoke();
             infectionEffect = MagicMotes.Infection(transform);
             infectedRenderers = GetComponentsInChildren<Renderer>();
@@ -99,11 +100,13 @@ namespace NecromancerInfection
         {
             var zombie = Instantiate(prefab, transform.position, transform.rotation);
             zombie.name = "Zombie";
+            zombie.GetComponent<CombatMotion>().BeginRising();
             zombie.Initialize(leader);
         }
 
         private void RestoreAppearance()
         {
+            if (TryGetComponent<CombatMotion>(out var motion)) motion.CancelTransformation();
             if (infectionEffect) Destroy(infectionEffect.gameObject);
             if (infectedRenderers == null) return;
             for (int i = 0; i < infectedRenderers.Length; i++)

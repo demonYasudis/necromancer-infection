@@ -34,27 +34,50 @@ namespace NecromancerInfection
 
         public bool TryInfectAtScreenPosition(Vector2 screenPosition)
         {
-            if (!isActiveAndEnabled || Time.timeScale <= 0 || !levelCamera || !necromancer || !zombiePrefab
-                || !Energy || screenPosition.x < 0 || screenPosition.y < 0
-                || screenPosition.x >= Screen.width || screenPosition.y >= Screen.height) return false;
-            var hud = GetComponent<DarkEnergyHUD>();
-            if (hud && hud.isActiveAndEnabled && hud.ContainsScreenPosition(screenPosition)) return false;
-            var feedback = FindFirstObjectByType<GameFeedback>();
-            if (feedback && feedback.isActiveAndEnabled && feedback.ContainsScreenPosition(screenPosition)) return false;
-            var objective = FindFirstObjectByType<FarmObjectiveHUD>();
-            if (objective && objective.isActiveAndEnabled && objective.ContainsScreenPosition(screenPosition)) return false;
+            if (Time.timeScale <= 0 || !TryGetTarget(screenPosition, out var target, out _, out _, out var reason) || reason != null) return false;
+            if (target.TryGetComponent<GuardCorpse>(out var corpse)) return corpse.TryRaise(necromancer, raiseGuardCost);
+            if (target.TryGetComponent<Grave>(out var grave)) return grave.TryRaise(necromancer);
+            if (!target.GetComponent<Civilian>().TryInfect(zombiePrefab, necromancer, infectionDelay)) return false;
+            return Energy.TrySpend(infectionCost);
+        }
+
+        public bool TryGetTarget(Vector2 screenPosition, out Transform target, out string action, out float cost, out string reason)
+        {
+            target = null;
+            action = reason = null;
+            cost = 0;
+            if (!isActiveAndEnabled || !levelCamera || !necromancer || !necromancer.Combat.IsAlive
+                || !zombiePrefab || !Energy || AbilityPointer.IsBlocked(screenPosition)) return false;
             Ray ray = levelCamera.ScreenPointToRay(screenPosition);
             if (!Physics.Raycast(ray, out RaycastHit hit, levelCamera.farClipPlane,
                 Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide)) return false;
             var corpse = hit.collider.GetComponentInParent<GuardCorpse>();
-            if (corpse) return corpse.TryRaise(necromancer, raiseGuardCost);
             var grave = hit.collider.GetComponentInParent<Grave>();
-            if (grave) return grave.TryRaise(necromancer);
-            if (!Energy.CanSpend(infectionCost)) return false;
             var civilian = hit.collider.GetComponentInParent<Civilian>();
-            if (!civilian || !civilian.TryInfect(zombiePrefab, necromancer, infectionDelay)) return false;
-            // TryInfect changes the target synchronously; rejected clicks never spend energy.
-            return Energy.TrySpend(infectionCost);
+            if (corpse)
+            {
+                target = corpse.transform;
+                action = "Поднять стражника";
+                cost = raiseGuardCost;
+                reason = corpse.UnavailableReason(necromancer);
+            }
+            else if (grave)
+            {
+                target = grave.transform;
+                action = $"Поднять скелетов: {grave.SkeletonCount}";
+                cost = grave.Cost;
+                reason = grave.UnavailableReason(necromancer);
+            }
+            else if (civilian)
+            {
+                target = civilian.transform;
+                action = "Заразить жителя";
+                cost = infectionCost;
+                if (!civilian.IsAvailableTarget) reason = "Цель уже заражена или недоступна";
+            }
+            else return false;
+            if (reason == null && !Energy.CanSpend(cost)) reason = "Недостаточно энергии";
+            return true;
         }
 
         private void OnValidate()

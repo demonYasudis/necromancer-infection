@@ -43,7 +43,10 @@ namespace NecromancerInfection.Editor
                 new Vector3(0.6f, 0, 0), Quaternion.identity).GetComponent<Guard>();
             defender.enabled = false;
             int impacts = audio.PlayedCount(GameAudio.Cue.Impact);
-            Require(attacker.Combat.TryAttack(defender.Combat) && audio.PlayedCount(GameAudio.Cue.Impact) == impacts + 1,
+            Require(attacker.Combat.TryAttack(defender.Combat) && audio.PlayedCount(GameAudio.Cue.Impact) == impacts,
+                "Windup must not play an impact early.");
+            yield return attacker.Combat.MeleeWindup + 0.05f;
+            Require(audio.PlayedCount(GameAudio.Cue.Impact) == impacts + 1,
                 "A real melee hit must trigger impact audio.");
             Object.Destroy(defender.gameObject);
             Object.Destroy(attacker.gameObject);

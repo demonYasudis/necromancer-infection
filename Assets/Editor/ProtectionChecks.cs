@@ -63,7 +63,9 @@ namespace NecromancerInfection.Editor
             var guard = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(GuardSetup.PrefabPath),
                 center + Vector3.right * 0.8f, Quaternion.identity).GetComponent<Guard>();
             guard.enabled = false;
-            Require(guard.Combat.TryAttack(zombieUnit.Combat) && zombieUnit.Combat.CurrentHealth == 42.5f,
+            Require(guard.Combat.TryAttack(zombieUnit.Combat), "Protected melee swing must start.");
+            yield return guard.Combat.MeleeWindup + 0.05f;
+            Require(zombieUnit.Combat.CurrentHealth == 42.5f,
                 "A real guard strike of 15 must deal exactly 7.5 inside protection.");
             zombieUnit.Combat.TakeDamage(1);
             Require(zombieUnit.Combat.CurrentHealth == 42, "A protected hit of 1 must deal 0.5 without rounding away damage.");
