@@ -421,6 +421,8 @@ namespace NecromancerInfection.Editor
             while (protectionVisualChecks.MoveNext()) yield return protectionVisualChecks.Current;
             var notificationChecks = NotificationChecks.Checks();
             while (notificationChecks.MoveNext()) yield return notificationChecks.Current;
+            var finaleChecks = FinaleChecks.Checks();
+            while (finaleChecks.MoveNext()) yield return finaleChecks.Current;
         }
 
         private static IEnumerator CombatChecks(Necromancer leader, Zombie prefab)

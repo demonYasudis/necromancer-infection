@@ -58,6 +58,7 @@ namespace NecromancerInfection
             staffPivot = staff ? new Vector3(staff.localPosition.x, 0.65f, staff.localPosition.z) : Vector3.zero;
             foreach (Transform child in transform)
             {
+                if (child.GetComponent<CharacterSpriteVisual>()) continue;
                 if (!child.GetComponent<Renderer>() || child.GetComponent<LineRenderer>()) continue;
                 string label = child.name;
                 parts.Add(new Part { Transform = child, Position = child.localPosition, Rotation = child.localRotation,

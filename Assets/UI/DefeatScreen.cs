@@ -9,12 +9,14 @@ namespace NecromancerInfection
         private GUIStyle titleStyle;
         private GUIStyle messageStyle;
         private GUIStyle buttonStyle;
+        private FinalePresentation finale;
 
         private void Awake() => manager = GetComponent<GameManager>();
 
         private void OnGUI()
         {
             if (!manager || !manager.IsDefeated) return;
+            if (!finale) finale = GetComponent<FinalePresentation>();
             if (titleStyle == null)
             {
                 titleStyle = new GUIStyle(GUI.skin.label)
@@ -37,7 +39,8 @@ namespace NecromancerInfection
             {
                 GUI.depth = -100;
                 GUI.matrix = Matrix4x4.identity;
-                Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0.015f, 0.012f, 0.025f, 0.8f));
+                Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(.035f, .008f, .018f,
+                    finale ? finale.DefeatFade : .92f));
                 float scale = Mathf.Min(Screen.width / 1280f, Screen.height / 720f);
                 if (scale <= 0) return;
                 GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1));

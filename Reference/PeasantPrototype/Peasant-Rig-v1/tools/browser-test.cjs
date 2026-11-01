@@ -1,0 +1,12 @@
+const {chromium}=require(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES+'/playwright');const path=require('path');
+(async()=>{const browser=await chromium.launch({headless:true,args:['--no-sandbox']}),page=await browser.newPage({viewport:{width:1100,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+await page.goto('file://'+path.resolve(__dirname,'../Peasant-Rig-Preview.html'));await page.waitForFunction(()=>window.rigReady===true);
+await page.getByRole('button',{name:'Пауза',exact:true}).click();
+await page.locator('#bones').check();await page.locator('#phase').evaluate(e=>{e.value=.15;e.dispatchEvent(new Event('input'));});
+await page.getByRole('button',{name:'Отсоединить левую руку',exact:true}).click();await page.waitForFunction(()=>window.rigTest.detached!==null);
+await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.waitForFunction(()=>window.rigTest.detached.age>.8);
+await page.getByRole('button',{name:'Восстановить',exact:true}).click();await page.waitForFunction(()=>window.rigTest.detached===null);
+await page.locator('#pouch').uncheck();await page.locator('#pouch').check();await page.getByRole('button',{name:'Пауза',exact:true}).click();
+await page.screenshot({path:path.resolve(__dirname,'../browser-qa.png'),fullPage:true});
+await page.setViewportSize({width:390,height:844});const fit=await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth);if(!fit)throw new Error('Mobile overflow');if(errors.length)throw new Error(errors.join('\n'));
+console.log('PASS: browser loads offline, pause, manual phase, bones, detach/fall/restore, pouch toggle, mobile width; no JS errors.');await browser.close();})();

@@ -1,0 +1,9 @@
+# Source art
+
+Generated with the built-in imagegen tool, transparent background enabled.
+The resulting complete human is split into overlapping parts by
+`tools/cut_peasant.py`; no new anatomy is generated independently per limb.
+
+## Exact final prompt
+
+Use case: stylized-concept. Asset: ONE complete full-body medieval peasant game character, transparent background, no text, no extra views, no sheet. Dark fantasy hand-painted pixel art with crisp edges and restrained fine detail, muted beige linen shirt laced at chest, faded blue trousers, simple brown leather ankle boots, short messy brown hair and short beard. Anatomically coherent adult man with natural human proportions, about six-and-a-half heads tall, naturally broad shoulders, slim normal arms, ordinary legs, normal-sized hands and feet. Entire human from hair to soles, generous transparent margin. Three-quarter view from slightly above, face and body aimed mostly toward viewer with small turn toward screen right. Neutral relaxed standing rigging pose: head directly joined to neck which joins chest, shoulders level, torso upright. BOTH arms straight and angled outward about 12 degrees, relaxed open hands beside hips, clearly separated from torso by transparent gaps. Shirt sleeves reach elbows, bare forearms, no gloves. BOTH legs almost straight and vertical, feet planted on same ground, feet slightly apart with a narrow transparent gap between legs all the way from just below crotch to ankles; boots face the viewer and slightly right. Hands and arms must not overlap shirt or legs. No bag, weapons, armor or accessories. Soft diffuse light from upper left. No dramatic shadow, ground, background, sockets, exposed stumps, hollow torso, exaggerated knees, bent squatting pose, dismemberment, extra limbs, doll joints, puppet seams. This is a single COMPLETE living human ready to cut into animation parts, so anatomy and connected silhouette matter more than elaborate folds.

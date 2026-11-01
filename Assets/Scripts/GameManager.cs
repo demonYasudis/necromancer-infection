@@ -50,6 +50,7 @@ namespace NecromancerInfection
             if (!GetComponent<AbilityPreview>()) gameObject.AddComponent<AbilityPreview>();
             if (!GetComponent<GameHUD>()) gameObject.AddComponent<GameHUD>();
             if (!GetComponent<GameNotifications>()) gameObject.AddComponent<GameNotifications>();
+            if (!GetComponent<FinalePresentation>()) gameObject.AddComponent<FinalePresentation>();
             if (levelCamera == null || ground == null || startPoint == null || captureTarget == null || necromancer == null
                 || System.Array.Exists(intermediateWaypoints, point => point == null))
             {

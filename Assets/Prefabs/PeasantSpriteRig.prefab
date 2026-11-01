@@ -1,0 +1,125 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2236195201382660606
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4820220123962356439}
+  - component: {fileID: 6402227607011139002}
+  m_Layer: 0
+  m_Name: PeasantSpriteRig
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4820220123962356439
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2236195201382660606}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6402227607011139002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2236195201382660606}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3abb2fdc1451e50428e1fecd112037f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NecromancerInfection.PeasantSpriteRig
+  Sprites:
+  - {fileID: 21300000, guid: 42a08065c51f76240a5cfec018000f7d, type: 3}
+  - {fileID: 21300000, guid: 320319124d71b0944b1e8a173be7d9b8, type: 3}
+  - {fileID: 21300000, guid: 011a6588fa8593f49ae58968fc0cae8d, type: 3}
+  - {fileID: 21300000, guid: c6d1e63b3272df3418064138e656a6b3, type: 3}
+  - {fileID: 21300000, guid: 5a60dba9912f4af4295a3a55323ad10f, type: 3}
+  - {fileID: 21300000, guid: 9f7739d7aec22f449901c5329530e9f8, type: 3}
+  - {fileID: 21300000, guid: cd74cd77825e9a64eb2878f29cade94e, type: 3}
+  - {fileID: 21300000, guid: f84f1814c4d511c44a8f43a0e123996b, type: 3}
+  - {fileID: 21300000, guid: c677e2af4c57a7a4fa3a3fa7354e787b, type: 3}
+  - {fileID: 21300000, guid: 8b603eac9e8b4e24bbda06df1d3d0fb4, type: 3}
+  - {fileID: 21300000, guid: 4f7cc8c339847414db888999b252a0f5, type: 3}
+  - {fileID: 21300000, guid: c584d053f8d31eb4eab265f5ca6a0b93, type: 3}
+  Pieces:
+  - Name: head
+    RestStart: {x: 0.012307692, y: 2.0846155}
+    RestEnd: {x: 0.012307692, y: 1.6615385}
+    ImageStart: {x: 0.44486693, y: 0.94842404}
+    ImageEnd: {x: 0.44486693, y: 0.16045845}
+  - Name: torso
+    RestStart: {x: 0.012307692, y: 1.6153846}
+    RestEnd: {x: 0.027692307, y: 1.0307692}
+    ImageStart: {x: 0.5413534, y: 0.7681992}
+    ImageEnd: {x: 0.566416, y: 0.040229887}
+  - Name: pelvis
+    RestStart: {x: 0.027692307, y: 1.0307692}
+    RestEnd: {x: 0.027692307, y: 0.9230769}
+    ImageStart: {x: 0.46518987, y: 0.8019802}
+    ImageEnd: {x: 0.46518987, y: 0.10891089}
+  - Name: near_upper
+    RestStart: {x: 0.26307693, y: 1.6907692}
+    RestEnd: {x: 0.32615384, y: 1.4215385}
+    ImageStart: {x: 0.32520324, y: 0.82246375}
+    ImageEnd: {x: 0.6585366, y: 0.1884058}
+  - Name: near_fore
+    RestStart: {x: 0.32615384, y: 1.4215385}
+    RestEnd: {x: 0.40461537, y: 1.183077}
+    ImageStart: {x: 0.4764706, y: 0.8375796}
+    ImageEnd: {x: 0.7764706, y: 0.34394905}
+  - Name: far_upper
+    RestStart: {x: -0.27384615, y: 1.5446154}
+    RestEnd: {x: -0.3353846, y: 1.2692307}
+    ImageStart: {x: 0.5224719, y: 0.8146853}
+    ImageEnd: {x: 0.2977528, y: 0.18881118}
+  - Name: far_fore
+    RestStart: {x: -0.3353846, y: 1.2692307}
+    RestEnd: {x: -0.3276923, y: 0.97384614}
+    ImageStart: {x: 0.38235295, y: 0.8515406}
+    ImageEnd: {x: 0.41911766, y: 0.3137255}
+  - Name: near_thigh
+    RestStart: {x: 0.13692307, y: 0.95692307}
+    RestEnd: {x: 0.17384616, y: 0.7153846}
+    ImageStart: {x: 0.39130434, y: 0.9441624}
+    ImageEnd: {x: 0.54037267, y: 0.14720812}
+  - Name: near_shin
+    RestStart: {x: 0.17384616, y: 0.7153846}
+    RestEnd: {x: 0.20307693, y: 0.4953846}
+    ImageStart: {x: 0.2735043, y: 0.9031142}
+    ImageEnd: {x: 0.35470086, y: 0.4083045}
+  - Name: far_thigh
+    RestStart: {x: -0.064615384, y: 0.9307692}
+    RestEnd: {x: -0.09538461, y: 0.67230767}
+    ImageStart: {x: 0.5410628, y: 0.8755556}
+    ImageEnd: {x: 0.44444445, y: 0.12888889}
+  - Name: far_shin
+    RestStart: {x: -0.09538461, y: 0.67230767}
+    RestEnd: {x: -0.16923077, y: 0.20769231}
+    ImageStart: {x: 0.6848485, y: 0.94017094}
+    ImageEnd: {x: 0.3939394, y: 0.2948718}
+  - Name: pouch
+    RestStart: {x: -0.15076923, y: 1.0307692}
+    RestEnd: {x: -0.15076923, y: 0.8923077}
+    ImageStart: {x: 0.5, y: 0.97}
+    ImageEnd: {x: 0.5, y: 0.03}
+  PreviewWalking: 1
+  ShowPouch: 0
+  Tempo: 0.85
+  Stride: 0.65
+  Paused: 0

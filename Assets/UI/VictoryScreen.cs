@@ -10,12 +10,14 @@ namespace NecromancerInfection
         private GUIStyle title;
         private GUIStyle text;
         private GUIStyle button;
+        private FinalePresentation finale;
 
         private void Awake() => manager = GetComponent<GameManager>();
 
         private void OnGUI()
         {
             if (!manager || !manager.IsVictorious) return;
+            if (!finale) finale = GetComponent<FinalePresentation>();
             if (title == null)
             {
                 title = new GUIStyle(GUI.skin.label)
@@ -38,7 +40,11 @@ namespace NecromancerInfection
             {
                 GUI.depth = -100;
                 GUI.matrix = Matrix4x4.identity;
-                Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0.015f, 0.012f, 0.025f, 0.85f));
+                float age = finale ? finale.ResultAge : 1;
+                Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(.015f, .012f, .025f,
+                    Mathf.Lerp(.3f, .85f, Mathf.SmoothStep(0, 1, age / .9f))));
+                Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(.42f, 1, .2f,
+                    Mathf.Sin(Mathf.Clamp01(age / .45f) * Mathf.PI) * .18f));
                 float scale = Mathf.Min(Screen.width / 1280f, Screen.height / 720f);
                 if (scale <= 0) return;
                 GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1));
@@ -50,10 +56,15 @@ namespace NecromancerInfection
                 GUI.Label(new Rect(left + 16, top + 24, 568, 50), "ФЕРМА ОСКВЕРНЕНА", title);
                 var duration = TimeSpan.FromSeconds(Math.Floor(manager.ElapsedSeconds));
                 string time = $"{(int)duration.TotalMinutes:00}:{duration.Seconds:00}";
-                GUI.Label(new Rect(left + 20, top + 95, 560, 30), $"Заражено людей: {manager.InfectedCount}", text);
-                GUI.Label(new Rect(left + 20, top + 131, 560, 30), $"Убито стражников: {manager.GuardsKilled}", text);
-                GUI.Label(new Rect(left + 20, top + 167, 560, 30), $"Выжившая нежить: {manager.SurvivingUndead} (с некромантом)", text);
-                GUI.Label(new Rect(left + 20, top + 203, 560, 30), $"Время прохождения: {time}", text);
+                string[] rows = { $"Заражено людей: {manager.InfectedCount}", $"Убито стражников: {manager.GuardsKilled}",
+                    $"Выжившая нежить: {manager.SurvivingUndead} (с некромантом)", $"Время прохождения: {time}" };
+                for (int i = 0; i < rows.Length; i++)
+                {
+                    float alpha = finale ? finale.StatisticAlpha(i) : 1;
+                    GUI.color = new Color(1, 1, 1, alpha);
+                    GUI.Label(new Rect(left + 20, top + 95 + i * 36 + (1 - alpha) * 8, 560, 30), rows[i], text);
+                }
+                GUI.color = Color.white;
                 GUI.enabled = !manager.IsRestarting;
                 if (GUI.Button(new Rect(left + 40, top + 268, 250, 52),
                     manager.IsRestarting ? "Загрузка…" : "Повторить", button)) manager.TryRestartLevel();
