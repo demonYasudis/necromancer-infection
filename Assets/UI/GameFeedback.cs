@@ -27,6 +27,9 @@ namespace NecromancerInfection
         public int ZombieCount { get; private set; }
         public int HeavyCount { get; private set; }
         public int SkeletonCount { get; private set; }
+        public int PeasantCount { get; private set; }
+        public int KnightCount { get; private set; }
+        public int RangedCount { get; private set; }
         public int RewardLabelCount => rewards.Count;
         public bool IsShaking => Time.unscaledTime < shakeEndsAt;
         private float Scale => new HUDLayout(Screen.width, Screen.height).Scale;
@@ -109,6 +112,7 @@ namespace NecromancerInfection
             graves = FindObjectsByType<Grave>(FindObjectsSortMode.None);
             HordeSize = 0;
             ZombieCount = HeavyCount = SkeletonCount = 0;
+            PeasantCount = KnightCount = RangedCount = 0;
             foreach (var unit in units)
             {
                 if (!unit || unit.gameObject.scene != gameObject.scene || !unit.IsAlive || !unit.isActiveAndEnabled) continue;
@@ -120,6 +124,9 @@ namespace NecromancerInfection
                     else ZombieCount++;
                 }
                 else if (unit.GetComponent<Necromancer>() == manager.Necromancer) HordeSize++;
+                else if (unit.TryGetComponent<Civilian>(out var civilian) && civilian.IsAvailableTarget) PeasantCount++;
+                else if (unit.TryGetComponent<Guard>(out var guard) && guard.isActiveAndEnabled) KnightCount++;
+                else if (unit.TryGetComponent<Crossbowman>(out var crossbowman) && crossbowman.isActiveAndEnabled) RangedCount++;
             }
         }
 
@@ -128,13 +135,14 @@ namespace NecromancerInfection
             if (Scale <= 0) return false;
             Vector2 point = new Vector2(position.x, Screen.height - position.y) / Scale;
             var layout = new HUDLayout(Screen.width, Screen.height);
-            return (hud && hud.IsVisible && layout.Horde.Contains(layout.FromScreen(position, Screen.height)))
+            return (hud && hud.IsVisible && layout.Village.Contains(layout.FromScreen(position, Screen.height)))
                 || (!manager.IsFinished && HasAlarmMessage && layout.Warning.Contains(point));
         }
 
         private void OnGUI()
         {
             if (!manager || Scale <= 0) return;
+            if (GetComponent<SoulProgression>() is SoulProgression progression && progression.IsChoosing) return;
             if (label == null)
             {
                 label = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = true };

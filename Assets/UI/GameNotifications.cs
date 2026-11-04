@@ -177,6 +177,7 @@ namespace NecromancerInfection
         private void OnGUI()
         {
             if (!IsVisible) return;
+            if (GetComponent<SoulProgression>() is SoulProgression progression && progression.IsChoosing) return;
             if (title == null)
             {
                 title = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, wordWrap = true };

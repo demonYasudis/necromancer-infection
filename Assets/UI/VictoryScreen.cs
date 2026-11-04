@@ -30,7 +30,7 @@ namespace NecromancerInfection
                     fontSize = 18, alignment = TextAnchor.MiddleCenter,
                     normal = { textColor = new Color(0.86f, 0.84f, 0.9f) }
                 };
-                button = new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
+                button = InterfaceTheme.Button(20, FontStyle.Bold);
             }
             var oldMatrix = GUI.matrix;
             var oldColor = GUI.color;
@@ -50,8 +50,7 @@ namespace NecromancerInfection
                 GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1));
                 float left = (Screen.width / scale - 600) * 0.5f;
                 float top = (Screen.height / scale - 400) * 0.5f;
-                Fill(new Rect(left, top, 600, 400), new Color(0.075f, 0.065f, 0.09f));
-                Fill(new Rect(left, top, 600, 3), new Color(0.68f, 0.36f, 0.92f));
+                InterfaceTheme.Panel(new Rect(left, top, 600, 400), InterfaceTheme.Green);
                 GUI.color = Color.white;
                 GUI.Label(new Rect(left + 16, top + 24, 568, 50), "ФЕРМА ОСКВЕРНЕНА", title);
                 var duration = TimeSpan.FromSeconds(Math.Floor(manager.ElapsedSeconds));
@@ -66,10 +65,10 @@ namespace NecromancerInfection
                 }
                 GUI.color = Color.white;
                 GUI.enabled = !manager.IsRestarting;
-                if (GUI.Button(new Rect(left + 40, top + 268, 250, 52),
+                if (InterfaceTheme.DrawButton(new Rect(left + 40, top + 268, 250, 52),
                     manager.IsRestarting ? "Загрузка…" : "Повторить", button)) manager.TryRestartLevel();
                 GUI.enabled = !manager.IsRestarting && manager.CanReturnToMenu;
-                if (GUI.Button(new Rect(left + 310, top + 268, 250, 52), "В меню", button)) manager.TryReturnToMenu();
+                if (InterfaceTheme.DrawButton(new Rect(left + 310, top + 268, 250, 52), "В меню", button)) manager.TryReturnToMenu();
                 GUI.enabled = true;
                 if (!manager.CanReturnToMenu)
                     GUI.Label(new Rect(left + 20, top + 340, 560, 30), "Меню появится в следующей версии", text);

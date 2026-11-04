@@ -64,6 +64,9 @@ namespace NecromancerInfection.Editor
                 Require(EditorApplication.timeSinceStartup < deadline, "Journey checks timed out.");
                 var manager = Object.FindFirstObjectByType<GameManager>();
                 if (!manager || manager.ElapsedSeconds < 0.2) return;
+                // Exercise a complete run with real upgrades; choose the first offered card.
+                var progression = manager.GetComponent<SoulProgression>();
+                if (progression && progression.IsChoosing) { progression.TryChoose(0); return; }
                 var journey = manager.GetComponent<JourneyRoute>();
                 var leader = manager.Necromancer;
                 if (phase == 0)

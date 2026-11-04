@@ -18,6 +18,17 @@ namespace NecromancerInfection
 
         public float Current => currentEnergy;
         public float Maximum => maxEnergy;
+        public float Regeneration => regenerationPerSecond;
+        public void IncreaseCapacity(float amount)
+        {
+            if (amount <= 0 || float.IsNaN(amount) || float.IsInfinity(amount)) return;
+            maxEnergy += amount;
+            Restore(amount);
+        }
+        public void IncreaseRegeneration(float amount)
+        {
+            if (amount > 0 && !float.IsNaN(amount) && !float.IsInfinity(amount)) regenerationPerSecond += amount;
+        }
         public bool IsAvailable => isActiveAndEnabled && owner && owner.Combat.IsAlive;
 
         private void Awake()

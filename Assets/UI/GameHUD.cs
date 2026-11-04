@@ -1,4 +1,5 @@
 using UnityEngine;
+using static NecromancerInfection.InterfaceTheme;
 
 namespace NecromancerInfection
 {
@@ -11,7 +12,9 @@ namespace NecromancerInfection
         private GameFeedback feedback;
         private JourneyRoute journey;
         private FarmAssault assault;
+        private AbilityPreview preview;
         private GUIStyle title, text, small, number, right, state, columnTitle;
+        private GUIStyle abilityTitle, abilityDetail;
         private bool initialized;
         public float DisplayedHealth { get; private set; }
         public float DisplayedEnergy { get; private set; }
@@ -20,12 +23,6 @@ namespace NecromancerInfection
         public bool IsVisible => isActiveAndEnabled && manager && !manager.IsFinished && !manager.IsRestarting;
         public HUDLayout Layout => new HUDLayout(Screen.width, Screen.height);
 
-        private static readonly Color Background = new Color(0.035f, 0.043f, 0.055f, 0.96f);
-        private static readonly Color Track = new Color(0.12f, 0.14f, 0.17f);
-        private static readonly Color Ink = new Color(0.91f, 0.93f, 0.91f);
-        private static readonly Color Muted = new Color(0.64f, 0.69f, 0.73f);
-        private static readonly Color Green = new Color(0.5f, 0.87f, 0.36f);
-        private static readonly Color Purple = new Color(0.72f, 0.5f, 1);
         private static readonly Color Warning = new Color(1, 0.65f, 0.38f);
 
         private void Awake() => manager = GetComponent<GameManager>();
@@ -34,6 +31,7 @@ namespace NecromancerInfection
             infection = FindFirstObjectByType<InfectionAbility>();
             protection = FindFirstObjectByType<ProtectionAbility>();
             feedback = GetComponent<GameFeedback>();
+            preview = GetComponent<AbilityPreview>();
             journey = GetComponent<JourneyRoute>();
             assault = manager.Farm ? manager.Farm.GetComponent<FarmAssault>() : null;
             SnapValues();
@@ -60,7 +58,8 @@ namespace NecromancerInfection
         {
             var layout = Layout;
             var notifications = GetComponent<GameNotifications>();
-            return IsVisible && layout.Contains(layout.FromScreen(position, Screen.height), notifications && notifications.HasMessage);
+            var guide = GetComponent<OnboardingGuide>();
+            return IsVisible && layout.Contains(layout.FromScreen(position, Screen.height), (notifications && notifications.HasMessage) || (guide && guide.IsVisible));
         }
 
         public bool OverlapsWorldLabel(Rect rect, float sourceScale)
@@ -70,7 +69,8 @@ namespace NecromancerInfection
             float ratio = sourceScale / layout.Scale;
             var bounds = new Rect(rect.position * ratio, rect.size * ratio);
             var notifications = GetComponent<GameNotifications>();
-            return layout.Overlaps(bounds) || (notifications && notifications.OverlapsWorldLabel(bounds));
+            var guide = GetComponent<OnboardingGuide>();
+            return layout.Overlaps(bounds, guide && guide.IsVisible) || (notifications && notifications.OverlapsWorldLabel(bounds));
         }
 
         private void Styles()
@@ -83,12 +83,16 @@ namespace NecromancerInfection
             right = new GUIStyle(text) { alignment = TextAnchor.MiddleRight };
             state = new GUIStyle(small) { alignment = TextAnchor.MiddleRight, wordWrap = false };
             columnTitle = new GUIStyle(small) { alignment = TextAnchor.MiddleCenter };
-            foreach (var style in new[] { title, text, small, number, right, state, columnTitle }) style.normal.textColor = Color.white;
+            abilityTitle = new GUIStyle(columnTitle) { fontSize = 14, fontStyle = FontStyle.Bold };
+            abilityDetail = new GUIStyle(columnTitle) { wordWrap = false, clipping = TextClipping.Clip };
+            foreach (var style in new[] { title, text, small, number, right, state, columnTitle, abilityTitle, abilityDetail })
+                style.normal.textColor = Color.white;
         }
 
         private void OnGUI()
         {
             if (!IsVisible || !initialized) return;
+            if (GetComponent<SoulProgression>() is SoulProgression progression && progression.IsChoosing) return;
             Styles();
             var matrix = GUI.matrix; var color = GUI.color; int depth = GUI.depth;
             try
@@ -96,7 +100,7 @@ namespace NecromancerInfection
                 var layout = Layout;
                 GUI.depth = -20;
                 GUI.matrix = Matrix4x4.Scale(new Vector3(layout.Scale, layout.Scale, 1));
-                DrawStatus(layout.Status); DrawHorde(layout.Horde);
+                DrawStatus(layout.Status); DrawVillage(layout.Village);
                 DrawObjective(layout.Objective); DrawAbilities(layout.Abilities);
             }
             finally { GUI.matrix = matrix; GUI.color = color; GUI.depth = depth; }
@@ -112,30 +116,33 @@ namespace NecromancerInfection
             Label(r, r.width - 144, 12, 128, 22, danger ? "КРИТИЧЕСКОЕ HP" : Health < maxHP ? "РАНЕН" : "В СТРОЮ", state, danger ? Warning : Muted);
             Label(r, 16, 40, 100, 22, "Здоровье", text, Ink);
             Label(r, 125, 40, r.width - 141, 22, $"{Health:0.#} / {maxHP:0} HP", right, danger ? Warning : Ink);
-            Bar(new Rect(r.x + 16, r.y + 66, r.width - 32, 10), DisplayedHealth / maxHP, danger ? Warning : Green);
-            Label(r, 16, 83, 120, 22, "Тёмная энергия", text, Purple);
+            Bar(new Rect(r.x + 16, r.y + 66, r.width - 32, 10), DisplayedHealth / maxHP, danger ? Warning : Blood);
+            bool enough = !infection || Energy >= infection.InfectionCost;
+            Label(r, 16, 83, 120, 22, enough ? "Тёмная энергия" : "Мало энергии", text, enough ? Green : Warning);
             Label(r, 140, 83, r.width - 156, 22, $"{Mathf.FloorToInt(Energy)} / {maxEnergy:0}", right, Ink);
-            Bar(new Rect(r.x + 16, r.y + 109, r.width - 32, 10), DisplayedEnergy / maxEnergy, Purple);
-            bool enough = infection && Energy >= infection.InfectionCost;
-            Label(r, 16, 124, r.width - 32, 20, enough ? "Энергия восстанавливается со временем" : "Мало энергии для заражения", small, enough ? Muted : Warning);
+            Bar(new Rect(r.x + 16, r.y + 109, r.width - 32, 10), DisplayedEnergy / maxEnergy, Green);
+            var progression = GetComponent<SoulProgression>();
+            string progress = progression ? $"Уровень {progression.Level} · Опыт {progression.Experience}/{progression.RequiredExperience}" : "Энергия восстанавливается со временем";
+            Label(r, 16, 121, r.width - 32, 20, progress, small, Muted);
+            if (progression) Bar(new Rect(r.x + 16, r.y + 140, r.width - 32, 4), (float)progression.Experience / progression.RequiredExperience, Green);
         }
 
-        private void DrawHorde(Rect r)
+        private void DrawVillage(Rect r)
         {
-            Panel(r, Green);
-            int zombies = feedback ? feedback.ZombieCount : 0;
-            int heavies = feedback ? feedback.HeavyCount : 0;
-            int skeletons = feedback ? feedback.SkeletonCount : 0;
-            Label(r, 16, 9, r.width - 32, 25, $"ОРДА · БОЙЦЫ: {zombies + heavies + skeletons}", title, Ink);
-            float column = (r.width - 32) / 3;
-            string[] labels = { "Зомби", "Тяжёлые", "Скелеты" };
-            int[] counts = { zombies, heavies, skeletons };
-            for (int i = 0; i < 3; i++)
-            {
-                Label(r, 16 + i * column, 45, column, 22, labels[i], columnTitle, Muted);
-                Label(r, 16 + i * column, 69, column, 36, counts[i].ToString(), number, i == 1 ? Purple : Green);
-            }
-            Label(r, 16, 121, r.width - 32, 22, $"С некромантом: {(feedback ? feedback.HordeSize : 1)}", small, Muted);
+            Panel(r, Brass);
+            Label(r, Inset, 9, r.width - 2 * Inset, 25, "ЖИТЕЛИ ДЕРЕВНИ", title, Ink);
+            float column = (r.width - 2 * Inset) / 3;
+            DrawVillageCount(r, Inset, column, "Крестьяне", feedback ? feedback.PeasantCount : 0, HUDIcons.Peasant);
+            DrawVillageCount(r, Inset + column, column, "Рыцари", feedback ? feedback.KnightCount : 0, HUDIcons.Knight);
+            DrawVillageCount(r, Inset + 2 * column, column, "Арбалетчики", feedback ? feedback.RangedCount : 0, HUDIcons.Crossbow);
+        }
+
+        private void DrawVillageCount(Rect r, float x, float width, string label, int count, Texture2D icon)
+        {
+            GUI.color = Brass;
+            GUI.DrawTexture(new Rect(r.x + x + (width - 24) / 2, r.y + 42, 24, 24), icon);
+            Label(r, x, 70, width, 22, label, columnTitle, Muted);
+            Label(r, x, 94, width, 36, count.ToString(), number, Ink);
         }
 
         private void DrawObjective(Rect r)
@@ -160,30 +167,35 @@ namespace NecromancerInfection
         {
             Panel(r, Purple);
             if (!infection || !protection || !protection.AreaPrefab) return;
-            float column = (r.width - 40) * 0.5f;
-            Label(r, 16, 8, column, 24, $"ЛКМ · Заражение  {infection.InfectionCost:0}", text, Energy >= infection.InfectionCost ? Ink : Warning);
-            Label(r, 24 + column, 8, column, 24, $"ЛКМ · Поднять тело  {infection.RaiseGuardCost:0}", text, Energy >= infection.RaiseGuardCost ? Ink : Warning);
-            Label(r, 16, 39, column, 24, $"ПКМ · Защита  {protection.EnergyCost:0}", text, Energy >= protection.EnergyCost ? Purple : Warning);
-            Label(r, 24 + column, 40, column, 29, Energy >= protection.EnergyCost
-                ? $"−{protection.AreaPrefab.DamageReduction * 100:0}% урона · {protection.AreaPrefab.Duration:0.#} с · по земле"
-                : "Для защиты мало энергии", small, Energy >= protection.EnergyCost ? Muted : Warning);
+            float width = (r.width - 32) / 3;
+            DrawAbility(new Rect(r.x + 8, r.y + 7, width, 66), HUDIcons.Infection,
+                "Заражение", "ЛКМ", infection.InfectionCost, Green, "Цель: житель");
+            DrawAbility(new Rect(r.x + 16 + width, r.y + 7, width, 66), HUDIcons.Protection,
+                "Защита", "ПКМ", protection.EnergyCost, Purple, "Цель: земля");
+            DrawAbility(new Rect(r.x + 24 + 2 * width, r.y + 7, width, 66), HUDIcons.Raise,
+                "Поднятие", "ЛКМ", infection.RaiseGuardCost, Brass, "Тело / могила");
+        }
+
+        private void DrawAbility(Rect tile, Texture2D icon, string name, string input, float cost, Color accent, string target)
+        {
+            bool aiming = preview && preview.Caption != null && preview.Icon == icon;
+            if (aiming) cost = preview.Cost;
+            bool funded = manager.Necromancer.Energy.CanSpend(cost);
+            bool unavailable = !funded || (aiming && !preview.IsAvailable);
+            bool hovered = tile.Contains(Event.current.mousePosition);
+            Panel(tile, unavailable ? Warning : hovered || aiming ? accent : Iron);
+            GUI.color = unavailable ? Muted : accent;
+            GUI.DrawTexture(new Rect(tile.center.x - 10, tile.y + 4, 20, 20), icon);
+            Label(tile, 4, 22, tile.width - 8, 16, name, abilityTitle, unavailable ? Muted : Ink);
+            Label(tile, 4, 37, tile.width - 8, 14, $"{input} · {cost:0.##} эн.", abilityDetail, Muted);
+            string detail = !funded ? "Мало энергии" : aiming && !preview.IsAvailable ? "Цель недоступна"
+                : aiming ? "Готово к применению" : hovered ? target : string.Empty;
+            Label(tile, 4, 50, tile.width - 8, 14, detail, abilityDetail, unavailable ? Warning : Ink);
         }
 
         private static void Label(Rect r, float x, float y, float width, float height, string value, GUIStyle style, Color color)
         {
             GUI.color = color; GUI.Label(new Rect(r.x + x, r.y + y, width, height), value, style);
-        }
-        private static void Panel(Rect r, Color accent)
-        {
-            Fill(r, Background); Fill(new Rect(r.x, r.y, 3, r.height), accent);
-        }
-        private static void Bar(Rect r, float amount, Color color)
-        {
-            Fill(r, Track); Fill(new Rect(r.x, r.y, r.width * Mathf.Clamp01(amount), r.height), color);
-        }
-        private static void Fill(Rect r, Color color)
-        {
-            GUI.color = color; GUI.DrawTexture(r, Texture2D.whiteTexture);
         }
     }
 }

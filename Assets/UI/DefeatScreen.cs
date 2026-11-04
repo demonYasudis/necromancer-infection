@@ -29,7 +29,7 @@ namespace NecromancerInfection
                     fontSize = 16, alignment = TextAnchor.MiddleCenter,
                     normal = { textColor = new Color(0.72f, 0.72f, 0.75f) }
                 };
-                buttonStyle = new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
+                buttonStyle = InterfaceTheme.Button(20, FontStyle.Bold);
             }
             Matrix4x4 originalMatrix = GUI.matrix;
             Color originalColor = GUI.color;
@@ -46,13 +46,12 @@ namespace NecromancerInfection
                 GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1));
                 float left = (Screen.width / scale - 520) * 0.5f;
                 float top = (Screen.height / scale - 240) * 0.5f;
-                Fill(new Rect(left, top, 520, 240), new Color(0.075f, 0.065f, 0.09f));
-                Fill(new Rect(left, top, 520, 3), new Color(0.56f, 0.3f, 0.38f));
+                InterfaceTheme.Panel(new Rect(left, top, 520, 240), InterfaceTheme.Blood);
                 GUI.color = Color.white;
                 GUI.Label(new Rect(left + 20, top + 28, 480, 52), "Некромант уничтожен", titleStyle);
                 GUI.Label(new Rect(left + 20, top + 86, 480, 30), "Орда потеряла своего повелителя.", messageStyle);
                 GUI.enabled = !manager.IsRestarting;
-                if (GUI.Button(new Rect(left + 140, top + 143, 240, 52),
+                if (InterfaceTheme.DrawButton(new Rect(left + 140, top + 143, 240, 52),
                     manager.IsRestarting ? "Загрузка…" : "Повторить", buttonStyle))
                     manager.TryRestartLevel();
             }

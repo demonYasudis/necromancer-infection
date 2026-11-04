@@ -14,6 +14,8 @@ namespace NecromancerInfection
 
         public float InfectionDelay => infectionDelay;
         public float InfectionCost => infectionCost;
+        public event System.Action InfectedByPlayer;
+        public void ReduceCost() => infectionCost *= .8f;
         public float RaiseGuardCost => raiseGuardCost;
         public DarkEnergy Energy => necromancer ? necromancer.Energy : null;
 
@@ -38,7 +40,9 @@ namespace NecromancerInfection
             if (target.TryGetComponent<GuardCorpse>(out var corpse)) return corpse.TryRaise(necromancer, raiseGuardCost);
             if (target.TryGetComponent<Grave>(out var grave)) return grave.TryRaise(necromancer);
             if (!target.GetComponent<Civilian>().TryInfect(zombiePrefab, necromancer, infectionDelay)) return false;
-            return Energy.TrySpend(infectionCost);
+            bool paid = Energy.TrySpend(infectionCost);
+            if (paid) InfectedByPlayer?.Invoke();
+            return paid;
         }
 
         public bool TryGetTarget(Vector2 screenPosition, out Transform target, out string action, out float cost, out string reason)

@@ -12,6 +12,8 @@ namespace NecromancerInfection
         [SerializeField, Min(0)] private float energyCost = 25;
 
         public float EnergyCost => energyCost;
+        public event System.Action CastByPlayer;
+        public void ReduceCost() => energyCost *= .8f;
         public ProtectionArea AreaPrefab => areaPrefab;
         private DarkEnergy Energy => necromancer ? necromancer.Energy : null;
 
@@ -34,6 +36,7 @@ namespace NecromancerInfection
                 || reason != null || !Energy.TrySpend(energyCost)) return false;
             var area = Instantiate(areaPrefab, point, Quaternion.identity);
             area.name = "ProtectionArea";
+            CastByPlayer?.Invoke();
             return true;
         }
 

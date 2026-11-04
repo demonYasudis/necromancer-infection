@@ -196,6 +196,12 @@ namespace NecromancerInfection.Editor
         {
             if (!SessionState.GetBool(RunningKey, false) || !EditorApplication.isPlaying
                 || EditorApplication.isPaused) return;
+            // Legacy balance suites test the base stats without optional player-selected upgrades.
+            // Progression, modal pause and onboarding are covered by ProgressionChecks.RunBatch.
+            var progression = Object.FindFirstObjectByType<SoulProgression>();
+            if (progression) progression.enabled = false;
+            var guide = Object.FindFirstObjectByType<OnboardingGuide>();
+            if (guide) guide.Skip();
             if (routine == null)
             {
                 routine = SessionState.GetBool(NotificationKey, false) ? NotificationChecks.Checks()

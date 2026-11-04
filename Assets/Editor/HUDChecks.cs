@@ -16,7 +16,7 @@ namespace NecromancerInfection.Editor
                 new Vector2(1024, 768), new Vector2(800, 600), new Vector2(640, 360), new Vector2(480, 800), new Vector2(320, 568) })
             {
                 var layout = new HUDLayout(size.x, size.y);
-                var rectangles = new[] { layout.Status, layout.Horde, layout.Objective, layout.Abilities, layout.Warning };
+                var rectangles = new[] { layout.Status, layout.Village, layout.Objective, layout.Abilities, layout.Warning };
                 var viewport = new Rect(0, 0, layout.Width, layout.Height);
                 for (int i = 0; i < rectangles.Length; i++)
                 {
@@ -59,6 +59,25 @@ namespace NecromancerInfection.Editor
             yield return 0.08f;
             Require(hud.DisplayedEnergy > 60 && hud.DisplayedEnergy < 90 && hud.Energy == 90, "Restoration must animate upward too.");
             var feedback = manager.GetComponent<GameFeedback>();
+            Vector3 fixturePosition = leader.transform.position + Vector3.right * 30;
+            var peasant = Object.Instantiate(AssetDatabase.LoadAssetAtPath<Civilian>("Assets/Prefabs/Civilian.prefab"),
+                fixturePosition, Quaternion.identity);
+            var knight = Object.Instantiate(AssetDatabase.LoadAssetAtPath<Guard>("Assets/Prefabs/Guard.prefab"),
+                fixturePosition, Quaternion.identity);
+            var ranged = Object.Instantiate(AssetDatabase.LoadAssetAtPath<Crossbowman>("Assets/Prefabs/Crossbowman.prefab"),
+                fixturePosition, Quaternion.identity);
+            yield return 0.2f;
+            Require(feedback.PeasantCount == 1 && feedback.KnightCount == 1 && feedback.RangedCount == 1,
+                "The village panel must count each living role.");
+            Require(peasant.TryInfect(AssetDatabase.LoadAssetAtPath<Zombie>("Assets/Prefabs/Zombie.prefab"), leader, 10),
+                "The village test peasant must accept infection.");
+            knight.Combat.TakeDamage(1000);
+            ranged.gameObject.SetActive(false);
+            yield return 0.2f;
+            Require(feedback.PeasantCount == 0 && feedback.KnightCount == 0 && feedback.RangedCount == 0,
+                "Infected, dead and inactive villagers must leave their categories.");
+            peasant.gameObject.SetActive(false);
+            Debug.Log("PASS: village counters distinguish active peasants, knights and crossbowmen.");
             var units = new Zombie[3];
             string[] names = { "Zombie", "RaisedGuard", "Skeleton" };
             for (int i = 0; i < 3; i++)
@@ -80,7 +99,7 @@ namespace NecromancerInfection.Editor
             var infection = Object.FindFirstObjectByType<InfectionAbility>();
             var protection = Object.FindFirstObjectByType<ProtectionAbility>();
             var current = hud.Layout;
-            foreach (var panel in new[] { current.Status, current.Horde, current.Objective, current.Abilities })
+            foreach (var panel in new[] { current.Status, current.Village, current.Objective, current.Abilities })
             {
                 Vector2 point = new Vector2(panel.center.x * current.Scale, Screen.height - panel.center.y * current.Scale);
                 float before = leader.Energy.Current;

@@ -6,9 +6,9 @@ namespace NecromancerInfection
     public readonly struct HUDLayout
     {
         public readonly float Scale, Width, Height;
-        public readonly Rect Status, Horde, Objective, Abilities, Warning;
-        public float PlayTop => Mathf.Max(Status.yMax, Horde.y < Height * 0.5f ? Horde.yMax : 0, Objective.yMax) + 12;
-        public float PlayBottom => Mathf.Min(Warning.yMin, Horde.y > Height * 0.5f ? Horde.yMin : Height) - 12;
+        public readonly Rect Status, Village, Objective, Abilities, Warning;
+        public float PlayTop => Mathf.Max(Status.yMax, Village.y < Height * 0.5f ? Village.yMax : 0, Objective.yMax) + 12;
+        public float PlayBottom => Mathf.Min(Warning.yMin, Village.y > Height * 0.5f ? Village.yMin : Height) - 12;
 
         public HUDLayout(float width, float height)
         {
@@ -23,7 +23,7 @@ namespace NecromancerInfection
             bool stacked = Width < 738;
             bool twoRows = Width < 1140;
             Status = new Rect(18, 18, stacked ? Width - 36 : 324, 148);
-            Horde = stacked ? new Rect(18, Height - 324, Width - 36, 148)
+            Village = stacked ? new Rect(18, Height - 324, Width - 36, 148)
                 : new Rect(Width - 302, twoRows ? Height - 166 : 18, 284, 148);
             Objective = stacked ? new Rect(18, 182, Width - 36, 128)
                 : twoRows ? new Rect(Width - 378, 18, 360, 128)
@@ -35,9 +35,9 @@ namespace NecromancerInfection
                 : new Rect((Width - controlsWidth) * 0.5f, Height - 158, controlsWidth, 48);
         }
 
-        public bool Contains(Vector2 point, bool warning = false) => Status.Contains(point) || Horde.Contains(point)
+        public bool Contains(Vector2 point, bool warning = false) => Status.Contains(point) || Village.Contains(point)
             || Objective.Contains(point) || Abilities.Contains(point) || (warning && Warning.Contains(point));
-        public bool Overlaps(Rect rect, bool warning = false) => Status.Overlaps(rect) || Horde.Overlaps(rect)
+        public bool Overlaps(Rect rect, bool warning = false) => Status.Overlaps(rect) || Village.Overlaps(rect)
             || Objective.Overlaps(rect) || Abilities.Overlaps(rect) || (warning && Warning.Overlaps(rect));
         public Vector2 FromScreen(Vector2 point, float screenHeight) => new Vector2(point.x, screenHeight - point.y) / Scale;
     }
