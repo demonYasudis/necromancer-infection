@@ -174,7 +174,13 @@ namespace NecromancerInfection
                         : unit.GetComponent<Guard>() || unit.GetComponent<Crossbowman>()
                             ? new Color(0.75f, 0.4f, 0.3f) : new Color(0.7f, 0.66f, 0.49f);
                     Fill(new Rect(point.x - width / 2, point.y, width * unit.CurrentHealth / unit.MaxHealth, 5), tint);
-                    if (unit.TryGetComponent<Crossbowman>(out var archer))
+                    if (unit.TryGetComponent<DefenderInfection>(out var defender) && defender.AcceptedClicks > 0)
+                    {
+                        GUI.color = new Color(.6f, 1, .3f);
+                        GUI.Label(new Rect(point.x - 85, point.y - 23, 170, 22), defender.IsInfected
+                            ? "Обращение…" : $"Заражение · {defender.AcceptedClicks}/{defender.RequiredClicks}", small);
+                    }
+                    else if (unit.TryGetComponent<Crossbowman>(out var archer))
                     {
                         GUI.color = new Color(1, 0.7f, 0.25f);
                         string caption = archer.State == Crossbowman.BehaviourState.Aiming

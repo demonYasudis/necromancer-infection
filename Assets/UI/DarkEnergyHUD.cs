@@ -13,7 +13,7 @@ namespace NecromancerInfection
             if (!hud || !hud.IsVisible) return false;
             var layout = hud.Layout;
             Vector2 point = layout.FromScreen(position, Screen.height);
-            return layout.Status.Contains(point) || layout.Abilities.Contains(point);
+            return layout.Status.Contains(point) || layout.EnergyOrb.Contains(point) || layout.Experience.Contains(point);
         }
     }
 }

@@ -17,6 +17,10 @@ namespace NecromancerInfection
         [SerializeField] private Necromancer necromancer;
         [SerializeField] private Transform[] intermediateWaypoints = new Transform[0];
         [SerializeField] private string menuScenePath;
+        [SerializeField] private string nextScenePath;
+        public LevelObjective Objective => GetComponent<LevelObjective>();
+        public bool CanAdvance => IsVictorious && !string.IsNullOrEmpty(nextScenePath)
+            && Application.CanStreamedLevelBeLoaded(nextScenePath);
 
         public Camera LevelCamera => levelCamera;
         public Collider Ground => ground;
@@ -28,13 +32,23 @@ namespace NecromancerInfection
         public bool IsDefeated { get; private set; }
         public bool IsVictorious { get; private set; }
         public bool IsFinished => IsDefeated || IsVictorious;
+        public bool IsPaused => (pause & PauseReason.Menu) != 0;
         public int InfectedCount { get; private set; }
         public int GuardsKilled { get; private set; }
         public int SurvivingUndead { get; private set; }
         public double ElapsedSeconds => IsFinished ? completedSeconds : Time.timeAsDouble - attemptStartedAt;
-        public bool CanReturnToMenu => !string.IsNullOrWhiteSpace(menuScenePath)
-            && menuScenePath != gameObject.scene.path && Application.CanStreamedLevelBeLoaded(menuScenePath);
+        private string MenuPath => string.IsNullOrWhiteSpace(menuScenePath) ? MainMenu.ScenePath : menuScenePath;
+        public bool CanReturnToMenu => (IsFinished || IsPaused) && !IsRestarting
+            && MenuPath != gameObject.scene.path && Application.CanStreamedLevelBeLoaded(MenuPath);
         public bool IsRestarting { get; private set; }
+        internal bool BlocksAbilityInput => IsFinished || IsRestarting || pause != PauseReason.None
+            || Time.frameCount == resumeFrame;
+        internal bool IsUpgradePaused => (pause & PauseReason.Upgrade) != 0;
+        [System.Flags]
+        private enum PauseReason { None = 0, Menu = 1, Upgrade = 2 }
+        private PauseReason pause;
+        private float resumeScale;
+        private int resumeFrame = -1;
         private UnitCombat leaderCombat;
         private FarmAssault assault;
         private double attemptStartedAt;
@@ -54,6 +68,8 @@ namespace NecromancerInfection
             if (!GetComponent<SoulProgression>()) gameObject.AddComponent<SoulProgression>();
             if (!GetComponent<OnboardingGuide>()) gameObject.AddComponent<OnboardingGuide>();
             if (!GetComponent<ProgressionScreen>()) gameObject.AddComponent<ProgressionScreen>();
+            if (!GetComponent<JourneyCamera>()) gameObject.AddComponent<JourneyCamera>();
+            if (!GetComponent<PauseMenu>()) gameObject.AddComponent<PauseMenu>();
             if (levelCamera == null || ground == null || startPoint == null || captureTarget == null || necromancer == null
                 || System.Array.Exists(intermediateWaypoints, point => point == null))
             {
@@ -84,7 +100,7 @@ namespace NecromancerInfection
         private void OnDestroy()
         {
             // Do not leave the editor or a subsequently opened scene frozen.
-            if (IsFinished) Time.timeScale = 1;
+            if (IsFinished || IsRestarting || pause != PauseReason.None) Time.timeScale = 1;
         }
 
         private void OnNecromancerDied(UnitCombat attacker)
@@ -111,6 +127,12 @@ namespace NecromancerInfection
 
         private void OnFarmCaptured()
         {
+            if (Objective) return;
+            CompleteLevel();
+        }
+
+        internal void CompleteLevel()
+        {
             if (IsFinished || IsRestarting || !necromancer || !necromancer.Combat.IsAlive) return;
             completedSeconds = ElapsedSeconds;
             SurvivingUndead = 1; // The living necromancer is part of the surviving undead.
@@ -121,21 +143,47 @@ namespace NecromancerInfection
             Time.timeScale = 0;
         }
 
-        public bool TryRestartLevel()
+        public bool TryPauseGame() => AcquirePause(PauseReason.Menu);
+        public bool TryResumeGame() => !IsFinished && !IsRestarting && ReleasePause(PauseReason.Menu);
+        internal bool TryPauseForUpgrade() => AcquirePause(PauseReason.Upgrade);
+        internal void ResumeAfterUpgrade() => ReleasePause(PauseReason.Upgrade);
+
+        private bool AcquirePause(PauseReason reason)
         {
-            if (!IsFinished || IsRestarting) return false;
-            IsRestarting = true;
-            // Keep the old attempt frozen until the new GameManager awakens.
-            SceneManager.LoadSceneAsync(gameObject.scene.path, LoadSceneMode.Single);
+            if (IsFinished || IsRestarting || (pause & reason) != 0) return false;
+            if (pause == PauseReason.None)
+            {
+                if (Time.timeScale <= 0) return false;
+                resumeScale = Time.timeScale;
+            }
+            pause |= reason;
+            Time.timeScale = 0;
             return true;
         }
 
-        public bool TryReturnToMenu()
+        private bool ReleasePause(PauseReason reason)
         {
-            if (!IsFinished || IsRestarting || !CanReturnToMenu) return false;
+            if ((pause & reason) == 0) return false;
+            pause &= ~reason;
+            if (pause == PauseReason.None && !IsFinished && !IsRestarting && Time.timeScale == 0)
+            {
+                Time.timeScale = resumeScale;
+                resumeFrame = Time.frameCount;
+            }
+            return true;
+        }
+
+        public bool TryRestartLevel() => (IsFinished || IsPaused) && TryLoadScene(gameObject.scene.path);
+        public bool TryAdvanceLevel() => CanAdvance && TryLoadScene(nextScenePath);
+        public bool TryReturnToMenu() => CanReturnToMenu && TryLoadScene(MenuPath);
+
+        private bool TryLoadScene(string path)
+        {
+            if (IsRestarting || !Application.CanStreamedLevelBeLoaded(path)) return false;
             IsRestarting = true;
-            Time.timeScale = 1;
-            SceneManager.LoadSceneAsync(menuScenePath, LoadSceneMode.Single);
+            // The old world stays frozen until the destination initializes its clock.
+            Time.timeScale = 0;
+            SceneManager.LoadSceneAsync(path, LoadSceneMode.Single);
             return true;
         }
 

@@ -17,6 +17,8 @@ namespace NecromancerInfection.Editor
             yield return 0.35f;
             manager = Object.FindFirstObjectByType<GameManager>();
             var notices = manager.GetComponent<GameNotifications>();
+            // Wave kills in this fixture must not open the separately tested level-up modal.
+            manager.GetComponent<SoulProgression>().enabled = false;
             var bell = Object.FindFirstObjectByType<AlarmBell>();
             var leader = manager.Necromancer;
             leader.enabled = false;

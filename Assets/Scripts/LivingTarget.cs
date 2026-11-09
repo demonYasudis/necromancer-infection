@@ -12,10 +12,13 @@ namespace NecromancerInfection
         private void OnEnable() => Active.Add(this);
         private void OnDisable() => Active.Remove(this);
 
-        public static UnitCombat FindNearest(Vector3 position, float radius, Vector3 hordeCenter, float hordeRadius)
+        public static UnitCombat FindNearest(Vector3 position, float radius, Vector3 hordeCenter, float hordeRadius,
+            Vector3 forward = default, UnitCombat preferred = null)
         {
             UnitCombat nearest = null;
-            float bestDistance = radius * radius;
+            float bestScore = float.PositiveInfinity;
+            float detectionSquared = radius * radius;
+            float retentionSquared = detectionSquared * 1.44f;
             foreach (var living in Active)
             {
                 if (!living) continue;
@@ -29,8 +32,13 @@ namespace NecromancerInfection
                 if (fromHorde.sqrMagnitude > hordeRadius * hordeRadius) continue;
                 Vector3 offset = living.transform.position - position;
                 offset.y = 0;
-                if (offset.sqrMagnitude > bestDistance) continue;
-                bestDistance = offset.sqrMagnitude;
+                float distance = offset.sqrMagnitude;
+                if (health == preferred && distance <= retentionSquared) return health;
+                if (distance > detectionSquared) continue;
+                // Prefer enemies in front, but still defend against a nearby flank or rear attack.
+                float score = distance + (Vector3.Dot(fromHorde, forward) < -.6f ? 4 : 0);
+                if (score >= bestScore) continue;
+                bestScore = score;
                 nearest = health;
             }
             return nearest;

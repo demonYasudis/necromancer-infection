@@ -7,6 +7,7 @@ namespace NecromancerInfection
     public sealed class GuardCorpse : MonoBehaviour
     {
         [SerializeField] private Zombie raisedGuardPrefab;
+        public Zombie RaisedGuardPrefab => raisedGuardPrefab;
         public bool IsConsumed { get; private set; }
 
         public string UnavailableReason(Necromancer leader)

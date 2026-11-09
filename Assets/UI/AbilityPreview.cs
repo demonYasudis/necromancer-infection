@@ -12,7 +12,11 @@ namespace NecromancerInfection
         private LineRenderer ring;
         private Material material;
         private GUIStyle style;
+        private string previousCaption;
+        private float hintElapsed;
+        public bool IsHintVisible => Caption != null && hintElapsed < 3;
         public string Caption { get; private set; }
+        public string UnavailableReason { get; private set; }
         internal Texture2D Icon { get; private set; }
         internal float Cost { get; private set; }
         public bool IsAvailable { get; private set; }
@@ -38,11 +42,18 @@ namespace NecromancerInfection
             ring.enabled = false;
         }
 
-        private void LateUpdate() => Refresh(Input.mousePosition);
+        private void LateUpdate()
+        {
+            Refresh(Input.mousePosition);
+            if (Caption == null) { previousCaption = null; hintElapsed = 0; return; }
+            if (Caption != previousCaption) { previousCaption = Caption; hintElapsed = 0; }
+            hintElapsed += Time.deltaTime;
+        }
 
         public void Refresh(Vector2 pointer)
         {
             Caption = null;
+            UnavailableReason = null;
             IsAvailable = false;
             ring.enabled = false;
             PreviewRadius = 0;
@@ -53,7 +64,13 @@ namespace NecromancerInfection
                 Icon = target.GetComponent<Civilian>() ? HUDIcons.Infection : HUDIcons.Raise;
                 Cost = cost;
                 IsAvailable = reason == null;
+                UnavailableReason = reason;
                 Caption = $"ЛКМ · {action} · {cost:0.##} энергии\n" + (reason ?? "Нажмите, чтобы применить");
+                if (target.TryGetComponent<DefenderInfection>(out var defender))
+                {
+                    float total = target.GetComponent<Crossbowman>() ? infection.ArcherInfectionCost : infection.SoldierInfectionCost;
+                    Caption = $"ЛКМ · {action}\n" + (reason ?? $"{total:0.##} энергии на последнем клике");
+                }
                 DrawRing(target.position, target.GetComponent<Grave>() ? 1.2f : 0.65f,
                     IsAvailable ? new Color(0.6f, 1, 0.3f) : new Color(1, 0.55f, 0.25f));
                 return;
@@ -64,12 +81,17 @@ namespace NecromancerInfection
             if (protection.TryGetPlacement(pointer, out var point, out var unavailable))
             {
                 IsAvailable = unavailable == null;
+                UnavailableReason = unavailable;
                 Caption = $"ПКМ · Защита · {protection.EnergyCost:0.##} энергии\n" + (unavailable ??
                     $"−{protection.AreaPrefab.DamageReduction * 100:0}% урона · {protection.AreaPrefab.Duration:0.#} сек");
                 DrawRing(point, protection.AreaPrefab.Radius,
                     IsAvailable ? new Color(0.8f, 0.5f, 1) : new Color(1, 0.55f, 0.25f));
             }
-            else Caption = $"ПКМ · Защита · {protection.EnergyCost:0.##} энергии\nВыберите свободную землю";
+            else
+            {
+                UnavailableReason = "Выберите свободную землю";
+                Caption = $"ПКМ · Защита · {protection.EnergyCost:0.##} энергии\n{UnavailableReason}";
+            }
         }
 
         private void DrawRing(Vector3 center, float radius, Color color)
@@ -88,6 +110,7 @@ namespace NecromancerInfection
         {
             if (ring) ring.enabled = false;
             Caption = null;
+            UnavailableReason = null;
         }
 
         private void OnDestroy()
@@ -97,7 +120,7 @@ namespace NecromancerInfection
 
         private void OnGUI()
         {
-            if (Caption == null || !manager || manager.IsFinished || Time.timeScale <= 0) return;
+            if (!IsHintVisible || !manager || manager.IsFinished || Time.timeScale <= 0) return;
             var layout = new HUDLayout(Screen.width, Screen.height);
             float scale = layout.Scale;
             if (scale <= 0) return;
@@ -119,8 +142,7 @@ namespace NecromancerInfection
                 Color accent = Icon == HUDIcons.Protection ? InterfaceTheme.Purple
                     : Icon == HUDIcons.Raise ? InterfaceTheme.Brass : InterfaceTheme.Green;
                 InterfaceTheme.Panel(box, IsAvailable ? accent : new Color(1, 0.65f, 0.38f));
-                GUI.color = accent;
-                GUI.DrawTexture(new Rect(box.x + 12, box.center.y - 12, 24, 24), Icon);
+                HUDIcons.Draw(new Rect(box.x + 9, box.center.y - 15, 30, 30), Icon, accent, !IsAvailable);
                 GUI.color = InterfaceTheme.Ink;
                 GUI.Label(new Rect(box.x + 44, box.y + 4, box.width - 56, box.height - 8), Caption, style);
             }

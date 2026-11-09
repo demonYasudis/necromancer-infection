@@ -7,11 +7,8 @@ namespace NecromancerInfection
     public sealed class VictoryScreen : MonoBehaviour
     {
         private GameManager manager;
-        private GUIStyle title;
-        private GUIStyle text;
-        private GUIStyle button;
+        private GUIStyle title, button, secondary;
         private FinalePresentation finale;
-
         private void Awake() => manager = GetComponent<GameManager>();
 
         private void OnGUI()
@@ -20,17 +17,9 @@ namespace NecromancerInfection
             if (!finale) finale = GetComponent<FinalePresentation>();
             if (title == null)
             {
-                title = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 28, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
-                    normal = { textColor = new Color(0.83f, 0.65f, 1) }
-                };
-                text = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 18, alignment = TextAnchor.MiddleCenter,
-                    normal = { textColor = new Color(0.86f, 0.84f, 0.9f) }
-                };
+                title = ResultFrame.Label(25, InterfaceTheme.Ink, bold: true);
                 button = InterfaceTheme.Button(20, FontStyle.Bold);
+                secondary = InterfaceTheme.Button(16);
             }
             var oldMatrix = GUI.matrix;
             var oldColor = GUI.color;
@@ -41,37 +30,40 @@ namespace NecromancerInfection
                 GUI.depth = -100;
                 GUI.matrix = Matrix4x4.identity;
                 float age = finale ? finale.ResultAge : 1;
-                Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(.015f, .012f, .025f,
+                InterfaceTheme.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(.015f, .02f, .012f,
                     Mathf.Lerp(.3f, .85f, Mathf.SmoothStep(0, 1, age / .9f))));
-                Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(.42f, 1, .2f,
+                InterfaceTheme.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(.42f, 1, .2f,
                     Mathf.Sin(Mathf.Clamp01(age / .45f) * Mathf.PI) * .18f));
-                float scale = Mathf.Min(Screen.width / 1280f, Screen.height / 720f);
-                if (scale <= 0) return;
-                GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1));
-                float left = (Screen.width / scale - 600) * 0.5f;
-                float top = (Screen.height / scale - 400) * 0.5f;
-                InterfaceTheme.Panel(new Rect(left, top, 600, 400), InterfaceTheme.Green);
-                GUI.color = Color.white;
-                GUI.Label(new Rect(left + 16, top + 24, 568, 50), "ФЕРМА ОСКВЕРНЕНА", title);
+                Rect panel = ResultFrame.Begin(492, InterfaceTheme.Green);
+                ResultFrame.Emblem(panel, true, age);
+                GUI.Label(new Rect(panel.x + 16, panel.y + 82, panel.width - 32, 64), manager.Objective
+                    ? manager.Objective.Mode == LevelObjective.ObjectiveMode.Survival ? "ВЫ ВЫЖИЛИ"
+                    : manager.Objective.TutorialLevel == 4 ? "ОБУЧЕНИЕ ПРОЙДЕНО" : "УРОВЕНЬ ПРОЙДЕН"
+                    : "ФЕРМА ОСКВЕРНЕНА", title);
                 var duration = TimeSpan.FromSeconds(Math.Floor(manager.ElapsedSeconds));
-                string time = $"{(int)duration.TotalMinutes:00}:{duration.Seconds:00}";
-                string[] rows = { $"Заражено людей: {manager.InfectedCount}", $"Убито стражников: {manager.GuardsKilled}",
-                    $"Выжившая нежить: {manager.SurvivingUndead} (с некромантом)", $"Время прохождения: {time}" };
-                for (int i = 0; i < rows.Length; i++)
+                string[] labels = { "Выжившая нежить", "Заражено людей", "Убито стражников", "Время прохождения" };
+                string[] values = { manager.SurvivingUndead.ToString(), manager.InfectedCount.ToString(),
+                    manager.GuardsKilled.ToString(), $"{(int)duration.TotalMinutes:00}:{duration.Seconds:00}" };
+                for (int i = 0; i < labels.Length; i++)
                 {
                     float alpha = finale ? finale.StatisticAlpha(i) : 1;
-                    GUI.color = new Color(1, 1, 1, alpha);
-                    GUI.Label(new Rect(left + 20, top + 95 + i * 36 + (1 - alpha) * 8, 560, 30), rows[i], text);
+                    ResultFrame.Row(panel, panel.y + 151 + i * 40 + (1 - alpha) * 6, labels[i], values[i], alpha);
                 }
-                GUI.color = Color.white;
+                GUI.Label(new Rect(panel.x + 20, panel.y + 316, panel.width - 40, 24),
+                    "В числе выживших — некромант", ResultFrame.Label(13, InterfaceTheme.Muted));
                 GUI.enabled = !manager.IsRestarting;
-                if (InterfaceTheme.DrawButton(new Rect(left + 40, top + 268, 250, 52),
-                    manager.IsRestarting ? "Загрузка…" : "Повторить", button)) manager.TryRestartLevel();
-                GUI.enabled = !manager.IsRestarting && manager.CanReturnToMenu;
-                if (InterfaceTheme.DrawButton(new Rect(left + 310, top + 268, 250, 52), "В меню", button)) manager.TryReturnToMenu();
-                GUI.enabled = true;
-                if (!manager.CanReturnToMenu)
-                    GUI.Label(new Rect(left + 20, top + 340, 560, 30), "Меню появится в следующей версии", text);
+                InterfaceTheme.Panel(new Rect(panel.x + 19, panel.y + 351, panel.width - 38, 56), InterfaceTheme.Green);
+                GUI.color = Color.white;
+                if (InterfaceTheme.DrawButton(new Rect(panel.x + 24, panel.y + 356, panel.width - 48, 46),
+                    manager.IsRestarting ? "Загрузка…" : manager.CanAdvance ? "Следующий уровень" : "Повторить", button))
+                { if (manager.CanAdvance) manager.TryAdvanceLevel(); else manager.TryRestartLevel(); }
+                GUI.enabled = !manager.IsRestarting && (manager.CanAdvance || manager.CanReturnToMenu);
+                if (InterfaceTheme.DrawButton(new Rect(panel.x + 24, panel.y + 414, panel.width - 48, 32),
+                    manager.CanAdvance ? "Повторить" : "В главное меню", secondary))
+                { if (manager.CanAdvance) manager.TryRestartLevel(); else manager.TryReturnToMenu(); }
+                if (manager.CanAdvance && manager.CanReturnToMenu && InterfaceTheme.DrawButton(
+                    new Rect(panel.x + 24, panel.y + 452, panel.width - 48, 30), "В главное меню", secondary))
+                    manager.TryReturnToMenu();
             }
             finally
             {
@@ -80,12 +72,6 @@ namespace NecromancerInfection
                 GUI.depth = oldDepth;
                 GUI.enabled = oldEnabled;
             }
-        }
-
-        private static void Fill(Rect rect, Color color)
-        {
-            GUI.color = color;
-            GUI.DrawTexture(rect, Texture2D.whiteTexture);
         }
     }
 }

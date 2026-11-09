@@ -10,7 +10,7 @@ namespace NecromancerInfection
             if (position.x < 0 || position.y < 0 || position.x >= Screen.width || position.y >= Screen.height) return true;
             var manager = Object.FindFirstObjectByType<GameManager>();
             if (manager && manager.GetComponent<SoulProgression>() is SoulProgression progression && progression.IsChoosing) return true;
-            if (manager && (manager.IsFinished || manager.IsRestarting)) return true;
+            if (manager && manager.BlocksAbilityInput) return true;
             var hud = manager ? manager.GetComponent<GameHUD>() : null;
             if (hud && hud.ContainsScreenPosition(position)) return true;
             var energy = Object.FindFirstObjectByType<DarkEnergyHUD>();

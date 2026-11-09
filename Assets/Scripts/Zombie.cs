@@ -6,6 +6,7 @@ namespace NecromancerInfection
     [RequireComponent(typeof(UndeadPresence))]
     [RequireComponent(typeof(UnitCombat))]
     [DisallowMultipleComponent]
+    [DefaultExecutionOrder(10)]
     public sealed class Zombie : MonoBehaviour
     {
         public enum BehaviourState { Idle, Following, PursuingTarget, Attacking, Returning }
@@ -21,25 +22,38 @@ namespace NecromancerInfection
         [SerializeField] private BehaviourState state;
         [SerializeField] private UnitCombat currentTarget;
 
-        private readonly RaycastHit[] obstacles = new RaycastHit[32];
+        private readonly RaycastHit[] obstacles = new RaycastHit[64];
+        private readonly HashSet<int> occupiedAttackSlots = new HashSet<int>();
         private static readonly List<Zombie> Active = new List<Zombie>();
         private static readonly float[] SteeringAngles = { 0, 30, -30, 60, -60, 90, -90, 120, -120, 150, -150, 180 };
         private UnitCombat combat;
         private bool spawnReported;
-        private int followSlot = -1;
         private int attackSlot = -1;
         private UnitCombat slotTarget;
+        private Vector3 velocity;
+        private Vector3 detour;
+        private bool hasDetour;
+        private float nextPathCheck;
+        private int detourSide = 1;
+        internal int FormationSlot { get; set; } = -1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetCrowd() => Active.Clear();
 
-        private void OnEnable() => Active.Add(this);
+        private void OnEnable()
+        {
+            Active.Add(this);
+            if (Leader) Leader.Horde.Join(this);
+        }
 
         private void OnDisable()
         {
             Active.Remove(this);
-            followSlot = attackSlot = -1;
+            if (Leader) Leader.Horde.Leave(this);
+            FormationSlot = attackSlot = -1;
             slotTarget = null;
+            velocity = Vector3.zero;
+            nextPathCheck = 0;
         }
 
         public static event System.Action<Zombie> Raised;
@@ -53,10 +67,17 @@ namespace NecromancerInfection
         public void Initialize(Necromancer leader)
         {
             movementArea = JourneyRoute.MovementArea(this, movementArea);
-            Leader = leader;
-            followSlot = attackSlot = -1;
+            if (Leader != leader)
+            {
+                if (Leader) Leader.Horde.Leave(this);
+                Leader = leader;
+                if (Leader && isActiveAndEnabled) Leader.Horde.Join(this);
+            }
+            attackSlot = -1;
             slotTarget = null;
             currentTarget = null;
+            velocity = Vector3.zero;
+            nextPathCheck = 0;
             state = BehaviourState.Following;
             if (!spawnReported && leader && Combat.IsAlive)
             {
@@ -73,28 +94,33 @@ namespace NecromancerInfection
                 currentTarget = null;
                 slotTarget = null;
                 attackSlot = -1;
+                velocity = Vector3.zero;
                 state = BehaviourState.Idle;
                 return;
             }
 
-            float distanceFromLeader = FlatDistance(transform.position, Leader.transform.position);
-            if (distanceFromLeader >= maxHordeDistance - 0.25f && state != BehaviourState.Returning)
+            var horde = Leader.Horde;
+            Vector3 leaderPosition = Leader.transform.position;
+            Vector3 formationPosition = horde.Destination(this, followDistance, movementArea);
+            float distanceFromLeader = FlatDistance(transform.position, leaderPosition);
+            float formationDistance = FlatDistance(formationPosition, leaderPosition);
+            float returnThreshold = Mathf.Clamp(formationDistance + .5f, returnDistance, maxHordeDistance - .75f);
+            if (distanceFromLeader >= maxHordeDistance - .25f
+                || (state == BehaviourState.Returning && distanceFromLeader > returnThreshold))
             {
                 state = BehaviourState.Returning;
-            }
-            if (state == BehaviourState.Returning && distanceFromLeader > returnDistance)
-            {
                 currentTarget = null;
                 slotTarget = null;
                 attackSlot = -1;
-                FollowLeader();
+                FollowFormation(horde, formationPosition, formationDistance);
                 return;
             }
 
-            currentTarget = LivingTarget.FindNearest(transform.position, detectionRadius,
-                Leader.transform.position, maxHordeDistance - 0.5f);
+            currentTarget = LivingTarget.FindNearest(transform.position, detectionRadius, leaderPosition,
+                maxHordeDistance - .5f, horde.Forward, currentTarget);
             if (currentTarget)
             {
+                nextPathCheck = 0;
                 if (slotTarget != currentTarget)
                 {
                     slotTarget = currentTarget;
@@ -102,10 +128,10 @@ namespace NecromancerInfection
                 }
                 // Reserve distinct places around the enemy. Outer ranks take a vacant
                 // inner place as soon as a front-line zombie dies or changes targets.
-                attackSlot = ReserveSlot(true, attackSlot);
+                attackSlot = ReserveAttackSlot();
                 float radius = Mathf.Min(approachDistance, Combat.AttackRange * 0.9f);
-                Vector3 destination = currentTarget.transform.position + SlotOffset(attackSlot, radius);
-                MoveTowards(destination, 0.04f);
+                Vector3 destination = currentTarget.transform.position + AttackOffset(attackSlot, radius);
+                MoveTowards(destination, .04f, maxHordeDistance);
                 state = Vector3.Distance(transform.position, currentTarget.transform.position) <= Combat.AttackRange
                     ? BehaviourState.Attacking : BehaviourState.PursuingTarget;
                 if (state == BehaviourState.Attacking) Combat.TryAttack(currentTarget);
@@ -115,46 +141,39 @@ namespace NecromancerInfection
                 state = BehaviourState.Following;
                 slotTarget = null;
                 attackSlot = -1;
-                FollowLeader();
+                FollowFormation(horde, formationPosition, formationDistance);
             }
         }
 
-        private void FollowLeader()
+        private void FollowFormation(HordeFormation horde, Vector3 position, float formationDistance)
         {
-            if (followSlot < 0) followSlot = ReserveSlot(false, -1);
-            Vector3 destination = Leader.transform.position + SlotOffset(followSlot, followDistance);
-            // In a doorway the formation compresses towards the leader, then opens
-            // back out after the walls no longer obstruct its assigned position.
-            Vector3 offset = destination - transform.position;
-            offset.y = 0;
-            if (!IsInsideArea(destination) || IsBlocked(transform.position, offset.normalized, offset.magnitude))
-                destination = Leader.transform.position;
-            MoveTowards(destination, 0.06f);
+            if (Time.time >= nextPathCheck)
+            {
+                hasDetour = horde.TryDetour(transform.position, position, obstacles, out detour);
+                nextPathCheck = Time.time + .18f;
+            }
+            MoveTowards(hasDetour ? detour : position, .12f, Mathf.Max(maxHordeDistance, formationDistance + .3f));
         }
 
-        private int ReserveSlot(bool attacking, int existing)
+        private int ReserveAttackSlot()
         {
-            int limit = existing >= 0 ? existing + 1 : Active.Count + 1;
-            int best = existing;
+            occupiedAttackSlots.Clear();
+            foreach (var other in Active)
+                if (other != this && other.slotTarget == currentTarget && other.Leader == Leader
+                    && other.attackSlot >= 0 && other.Combat.IsAlive)
+                    occupiedAttackSlots.Add(other.attackSlot);
+
+            int limit = attackSlot >= 0 ? attackSlot + 1 : Active.Count + 1;
+            int best = attackSlot;
             float bestDistance = float.PositiveInfinity;
-            float radius = attacking ? Mathf.Min(approachDistance, Combat.AttackRange * 0.9f) : followDistance;
-            Vector3 center = attacking ? currentTarget.transform.position : Leader.transform.position;
+            float radius = Mathf.Min(approachDistance, Combat.AttackRange * .9f);
+            Vector3 center = currentTarget.transform.position;
             for (int slot = 0; slot < limit; slot++)
             {
-                bool occupied = false;
-                foreach (var other in Active)
-                {
-                    if (other == this || !other || !other.Combat.IsAlive || other.Leader != Leader) continue;
-                    if (attacking ? other.slotTarget == currentTarget && other.attackSlot == slot : other.followSlot == slot)
-                    {
-                        occupied = true;
-                        break;
-                    }
-                }
-                if (occupied) continue;
+                if (occupiedAttackSlots.Contains(slot)) continue;
                 // Keep a reservation stable, except that waiting ranks may advance.
-                if (existing >= 0) return slot;
-                Vector3 offset = SlotOffset(slot, radius);
+                if (attackSlot >= 0) return slot;
+                Vector3 offset = AttackOffset(slot, radius);
                 float distance = (center + offset - transform.position).sqrMagnitude + offset.sqrMagnitude * 2;
                 if (distance >= bestDistance) continue;
                 bestDistance = distance;
@@ -163,7 +182,7 @@ namespace NecromancerInfection
             return best < 0 ? 0 : best;
         }
 
-        private Vector3 SlotOffset(int slot, float radius)
+        private Vector3 AttackOffset(int slot, float radius)
         {
             int ring = 0;
             int capacity;
@@ -181,9 +200,13 @@ namespace NecromancerInfection
             return new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * radius;
         }
 
-        private void MoveTowards(Vector3 destination, float stoppingDistance)
+        private void MoveTowards(Vector3 destination, float stoppingDistance, float leash)
         {
-            if (Combat.IsMeleeContact) return;
+            if (Combat.IsMeleeContact)
+            {
+                velocity = Vector3.zero;
+                return;
+            }
             destination.y = transform.position.y;
             Vector3 offset = destination - transform.position;
             float distance = offset.magnitude;
@@ -194,7 +217,8 @@ namespace NecromancerInfection
                 Vector3 away = transform.position - other.transform.position;
                 away.y = 0;
                 float gap = away.magnitude;
-                float spacing = Mathf.Max(crowdSpacing, other.crowdSpacing);
+                // Contact correction ends well inside the gap between reserved places.
+                float spacing = Mathf.Max(crowdSpacing, other.crowdSpacing) * .85f;
                 if (gap >= spacing) continue;
                 if (gap < 0.001f)
                 {
@@ -203,53 +227,60 @@ namespace NecromancerInfection
                     gap = 0;
                 }
                 else away /= gap;
-                separation += away * (1 - gap / spacing);
+                separation += away * (spacing - gap);
             }
-            Vector3 desired = distance > stoppingDistance ? offset / distance : Vector3.zero;
-            Vector3 velocity = Vector3.ClampMagnitude(desired + separation * 6, 1);
-            if (velocity.sqrMagnitude < 0.0001f) return;
+            float approachSpeed = Mathf.Min(moveSpeed, Mathf.Max(0, distance - stoppingDistance) * 6);
+            Vector3 desired = offset.normalized * approachSpeed + separation * 5;
+            if (approachSpeed == 0 && separation.sqrMagnitude < .0001f)
+            {
+                velocity = Vector3.zero;
+                return;
+            }
+            velocity = Vector3.MoveTowards(velocity, Vector3.ClampMagnitude(desired, moveSpeed), 16 * Time.deltaTime);
+            if (velocity.sqrMagnitude < .0004f) return;
             Vector3 direction = velocity.normalized;
-            float step = moveSpeed * Time.deltaTime * velocity.magnitude;
-            if (separation.sqrMagnitude < 0.0001f) step = Mathf.Min(step, Mathf.Max(0, distance - stoppingDistance));
+            float step = Time.deltaTime * velocity.magnitude;
+            if (separation.sqrMagnitude < .0001f) step = Mathf.Min(step, Mathf.Max(0, distance - stoppingDistance));
             if (step <= 0) return;
-            float currentHordeDistance = FlatDistance(transform.position, Leader.transform.position);
+            Vector3 leaderPosition = Leader.transform.position;
+            float currentHordeDistance = FlatDistance(transform.position, leaderPosition);
+            float clearance = Mathf.Min(.85f, currentHordeDistance);
+            float allowedRadius = currentHordeDistance > leash ? currentHordeDistance + step * .1f : leash;
 
             foreach (float angle in SteeringAngles)
             {
-                Vector3 steered = Quaternion.Euler(0, angle, 0) * direction;
+                float turn = angle * detourSide;
+                Vector3 steered = Quaternion.Euler(0, turn, 0) * direction;
                 Vector3 nextPosition = transform.position + steered * step;
                 if (!IsInsideArea(nextPosition)) continue;
-                float nextHordeDistance = FlatDistance(nextPosition, Leader.transform.position);
-                // A distant conversion walks home; a pursuing zombie cannot cross the leash.
-                // Allow near-tangential detours outside the leash, even while the leader moves.
-                // Inside the horde radius the boundary remains strict.
-                float allowedRadius = currentHordeDistance > maxHordeDistance
-                    ? currentHordeDistance + step * 0.1f : maxHordeDistance;
-                if (nextHordeDistance > allowedRadius) continue;
+                float nextHordeDistance = FlatDistance(nextPosition, leaderPosition);
+                if (nextHordeDistance < clearance || nextHordeDistance > allowedRadius) continue;
 
-                if (IsBlocked(transform.position, steered, step + 0.1f)) continue;
+                float lookAhead = step + .1f;
+                if (ObstacleClearance(transform.position, steered, lookAhead, obstacles) < lookAhead) continue;
+                if (turn != 0 && angle != 180) detourSide = turn > 0 ? 1 : -1;
                 transform.position = nextPosition;
-                transform.rotation = Quaternion.LookRotation(steered);
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(steered),
+                    720 * Time.deltaTime);
                 return;
             }
         }
 
         private bool IsInsideArea(Vector3 point) => movementArea.Contains(new Vector2(point.x, point.z));
 
-        private bool IsBlocked(Vector3 origin, Vector3 direction, float distance)
+        internal static float ObstacleClearance(Vector3 origin, Vector3 direction, float distance, RaycastHit[] hits)
         {
-            if (distance <= 0) return false;
+            if (distance <= 0) return 0;
             int count = Physics.SphereCastNonAlloc(origin + Vector3.up * 0.7f,
-                0.3f, direction, obstacles, distance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
-            if (count == obstacles.Length) return true;
+                .3f, direction.normalized, hits, distance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            if (count == hits.Length) return 0;
             for (int i = 0; i < count; i++)
             {
-                var hit = obstacles[i].collider;
-                if (hit.transform.IsChildOf(transform) || hit.GetComponentInParent<LivingTarget>()
-                    || hit.GetComponentInParent<UndeadPresence>()) continue;
-                return true;
+                var hit = hits[i];
+                if (hit.collider.GetComponentInParent<LivingTarget>() || hit.collider.GetComponentInParent<UndeadPresence>()) continue;
+                distance = Mathf.Min(distance, hit.distance);
             }
-            return false;
+            return distance;
         }
 
         private static float FlatDistance(Vector3 a, Vector3 b)

@@ -13,6 +13,8 @@ namespace NecromancerInfection
 
         private Transform[] route = Array.Empty<Transform>();
         private int nextWaypoint;
+        private HordeFormation horde;
+        internal HordeFormation Horde => horde ??= new HordeFormation(this);
 
         public UnitCombat Combat => combat ? combat : combat = GetComponent<UnitCombat>();
         public DarkEnergy Energy => GetComponent<DarkEnergy>();
@@ -20,6 +22,19 @@ namespace NecromancerInfection
         public float CurrentHealth => Combat.CurrentHealth;
         public float MoveSpeed => moveSpeed;
         public bool HasArrived => route.Length > 0 && nextWaypoint == route.Length;
+        public Vector3 TravelDirection
+        {
+            get
+            {
+                for (int i = nextWaypoint; i < route.Length; i++)
+                {
+                    if (!route[i]) continue;
+                    var direction = Vector3.ProjectOnPlane(route[i].position - transform.position, Vector3.up);
+                    if (direction.sqrMagnitude > .0001f) return direction.normalized;
+                }
+                return transform.forward;
+            }
+        }
 
         public void BeginRoute(Vector3 startPosition, Transform[] waypoints)
         {

@@ -49,7 +49,7 @@ namespace NecromancerInfection
             heavy = GetComponent<RaisedGuard>();
             necromancer = GetComponent<Necromancer>();
             skeleton = GetComponent<Skeleton>();
-            walker = necromancer || GetComponent<Zombie>();
+            walker = necromancer || guard || GetComponent<Zombie>();
             previousPosition = transform.position;
             // An instance-specific phase without consuming Unity's gameplay random stream.
             uint seed = unchecked((uint)GetInstanceID() * 2654435761u);

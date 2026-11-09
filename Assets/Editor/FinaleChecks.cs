@@ -220,8 +220,20 @@ namespace NecromancerInfection.Editor
             Prepare(manager, 1);
             while (!manager.IsFinished) yield return .02f;
             yield return 1.1f;
-            ScreenCapture.CaptureScreenshot("Previews/finale-victory.png");
-            yield return .4f;
+            using (var view = new HUDChecks.GameViewResolution())
+            {
+                foreach (var size in new[] { new Vector2Int(1280, 720), new Vector2Int(320, 568), new Vector2Int(640, 360) })
+                {
+                    view.Set(size.x, size.y);
+                    yield return .3f;
+                    ScreenCapture.CaptureScreenshot($"Previews/finale-victory-{size.x}x{size.y}.png");
+                    yield return .3f;
+                }
+                view.Set(1280, 720);
+                yield return .3f;
+                ScreenCapture.CaptureScreenshot("Previews/finale-victory.png");
+                yield return .3f;
+            }
             Require(manager.TryRestartLevel(), "Preview retry");
             yield return .5f;
             manager = Object.FindFirstObjectByType<GameManager>();
@@ -229,8 +241,20 @@ namespace NecromancerInfection.Editor
             yield return .5f;
             manager.Necromancer.Combat.TakeDamage(1000);
             yield return 1.3f;
-            ScreenCapture.CaptureScreenshot("Previews/finale-defeat.png");
-            yield return .5f;
+            using (var view = new HUDChecks.GameViewResolution())
+            {
+                foreach (var size in new[] { new Vector2Int(1280, 720), new Vector2Int(320, 568), new Vector2Int(640, 360) })
+                {
+                    view.Set(size.x, size.y);
+                    yield return .3f;
+                    ScreenCapture.CaptureScreenshot($"Previews/finale-defeat-{size.x}x{size.y}.png");
+                    yield return .3f;
+                }
+                view.Set(1280, 720);
+                yield return .3f;
+                ScreenCapture.CaptureScreenshot("Previews/finale-defeat.png");
+                yield return .3f;
+            }
             Require(File.Exists("Previews/finale-victory.png") && File.Exists("Previews/finale-defeat.png"),
                 "Game View must render both result-screen previews");
         }

@@ -6,68 +6,52 @@ namespace NecromancerInfection
     public sealed class DefeatScreen : MonoBehaviour
     {
         private GameManager manager;
-        private GUIStyle titleStyle;
-        private GUIStyle messageStyle;
-        private GUIStyle buttonStyle;
+        private GUIStyle title, message, button, secondary;
         private FinalePresentation finale;
-
         private void Awake() => manager = GetComponent<GameManager>();
 
         private void OnGUI()
         {
             if (!manager || !manager.IsDefeated) return;
             if (!finale) finale = GetComponent<FinalePresentation>();
-            if (titleStyle == null)
+            if (title == null)
             {
-                titleStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 28, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
-                    normal = { textColor = new Color(0.93f, 0.8f, 0.77f) }
-                };
-                messageStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 16, alignment = TextAnchor.MiddleCenter,
-                    normal = { textColor = new Color(0.72f, 0.72f, 0.75f) }
-                };
-                buttonStyle = InterfaceTheme.Button(20, FontStyle.Bold);
+                title = ResultFrame.Label(25, InterfaceTheme.Ink, bold: true);
+                message = ResultFrame.Label(16, InterfaceTheme.Muted);
+                button = InterfaceTheme.Button(20, FontStyle.Bold);
+                secondary = InterfaceTheme.Button(16);
             }
-            Matrix4x4 originalMatrix = GUI.matrix;
-            Color originalColor = GUI.color;
-            int originalDepth = GUI.depth;
-            bool originalEnabled = GUI.enabled;
+            var matrix = GUI.matrix;
+            var color = GUI.color;
+            int depth = GUI.depth;
+            bool enabled = GUI.enabled;
             try
             {
                 GUI.depth = -100;
                 GUI.matrix = Matrix4x4.identity;
-                Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(.035f, .008f, .018f,
+                InterfaceTheme.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(.035f, .008f, .018f,
                     finale ? finale.DefeatFade : .92f));
-                float scale = Mathf.Min(Screen.width / 1280f, Screen.height / 720f);
-                if (scale <= 0) return;
-                GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1));
-                float left = (Screen.width / scale - 520) * 0.5f;
-                float top = (Screen.height / scale - 240) * 0.5f;
-                InterfaceTheme.Panel(new Rect(left, top, 520, 240), InterfaceTheme.Blood);
-                GUI.color = Color.white;
-                GUI.Label(new Rect(left + 20, top + 28, 480, 52), "Некромант уничтожен", titleStyle);
-                GUI.Label(new Rect(left + 20, top + 86, 480, 30), "Орда потеряла своего повелителя.", messageStyle);
+                Rect panel = ResultFrame.Begin(manager.CanReturnToMenu || manager.IsRestarting ? 365 : 316, InterfaceTheme.Blood);
+                ResultFrame.Emblem(panel, false, finale ? finale.ResultAge : 1);
+                GUI.Label(new Rect(panel.x + 16, panel.y + 82, panel.width - 32, 68), "НЕКРОМАНТ УНИЧТОЖЕН", title);
+                GUI.Label(new Rect(panel.x + 24, panel.y + 158, panel.width - 48, 52),
+                    "Посох погас.\nОрда потеряла своего повелителя.", message);
                 GUI.enabled = !manager.IsRestarting;
-                if (InterfaceTheme.DrawButton(new Rect(left + 140, top + 143, 240, 52),
-                    manager.IsRestarting ? "Загрузка…" : "Повторить", buttonStyle))
-                    manager.TryRestartLevel();
+                InterfaceTheme.Panel(new Rect(panel.x + 19, panel.y + 235, panel.width - 38, 56), InterfaceTheme.Brass);
+                GUI.color = Color.white;
+                if (InterfaceTheme.DrawButton(new Rect(panel.x + 24, panel.y + 240, panel.width - 48, 46),
+                    manager.IsRestarting ? "Загрузка…" : "Повторить", button)) manager.TryRestartLevel();
+                if (manager.CanReturnToMenu && InterfaceTheme.DrawButton(
+                    new Rect(panel.x + 24, panel.y + 304, panel.width - 48, 36), "В главное меню", secondary))
+                    manager.TryReturnToMenu();
             }
             finally
             {
-                GUI.matrix = originalMatrix;
-                GUI.color = originalColor;
-                GUI.depth = originalDepth;
-                GUI.enabled = originalEnabled;
+                GUI.matrix = matrix;
+                GUI.color = color;
+                GUI.depth = depth;
+                GUI.enabled = enabled;
             }
-        }
-
-        private static void Fill(Rect rect, Color color)
-        {
-            GUI.color = color;
-            GUI.DrawTexture(rect, Texture2D.whiteTexture);
         }
     }
 }

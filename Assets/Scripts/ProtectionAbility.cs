@@ -48,9 +48,19 @@ namespace NecromancerInfection
                 || !necromancer || !necromancer.Combat.IsAlive || AbilityPointer.IsBlocked(screenPosition)) return false;
             Ray ray = levelCamera.ScreenPointToRay(screenPosition);
             if (!Physics.Raycast(ray, out RaycastHit hit, levelCamera.farClipPlane,
-                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)
-                || hit.collider != ground || Vector3.Dot(hit.normal, Vector3.up) < 0.5f) return false;
-            point = hit.point;
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)) return false;
+            if (hit.collider.GetComponentInParent<Necromancer>() == necromancer)
+            {
+                // Target the ground beneath the leader when clicking his body.
+                var down = new Ray(necromancer.transform.position + Vector3.up * 5, Vector3.down);
+                if (!ground.Raycast(down, out var groundHit, 10)) return false;
+                point = groundHit.point;
+            }
+            else
+            {
+                if (hit.collider != ground || Vector3.Dot(hit.normal, Vector3.up) < 0.5f) return false;
+                point = hit.point;
+            }
             if (!Energy.CanSpend(energyCost)) reason = "Недостаточно энергии";
             return true;
         }

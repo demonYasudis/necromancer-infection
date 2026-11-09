@@ -20,6 +20,7 @@ namespace NecromancerInfection
             public Vector2 Direction;
             public string Text;
             public int Count;
+            internal Texture2D Icon;
         }
         private readonly List<Notice> notices = new List<Notice>();
         private readonly List<Indicator> indicators = new List<Indicator>();
@@ -31,8 +32,9 @@ namespace NecromancerInfection
         private int arrived;
         private Notice current;
         private GUIStyle title, detail;
+        private static readonly Color Urgent = new Color32(255, 166, 96, 255);
         public bool IsVisible => isActiveAndEnabled && manager && !manager.IsFinished && !manager.IsRestarting;
-        public bool HasMessage => IsVisible && current != null;
+        public bool HasMessage => IsVisible && current != null && current.Remaining > 0;
         public string CurrentKey => HasMessage ? current.Key : null;
         public string CurrentText => HasMessage ? current.Text : null;
         public int CurrentCount => HasMessage ? current.Count : 0;
@@ -57,7 +59,7 @@ namespace NecromancerInfection
             var notice = notices.Find(item => item.Key == key);
             if (notice == null)
             {
-                notice = new Notice { Key = key, Count = 0 };
+                notice = new Notice { Key = key, Count = 0, Remaining = 4 };
                 notices.Add(notice);
             }
             notice.Text = text; notice.Priority = priority; notice.Persistent = persistent;
@@ -70,10 +72,10 @@ namespace NecromancerInfection
         private void LateUpdate()
         {
             if (!IsVisible) { notices.Clear(); current = null; return; }
-            if (current != null && !current.Persistent && Time.deltaTime > 0)
+            if (current != null && Time.deltaTime > 0)
             {
                 current.Remaining -= Time.deltaTime;
-                if (current.Remaining <= 0) notices.Remove(current);
+                if (current.Remaining <= 0 && !current.Persistent) notices.Remove(current);
             }
             bool running = bell && bell.isActiveAndEnabled && bell.CanRun && bell.Runner && bell.Runner.IsRunning;
             if (running) Put("runner", "ПОСЫЛЬНЫЙ БЕЖИТ К КОЛОКОЛУ · Заразите его!", 100, true);
@@ -86,6 +88,7 @@ namespace NecromancerInfection
             if (activeAssault && assault.WavesSpawned > arrived)
                 Put("arrival", $"ПОДКРЕПЛЕНИЕ ПРИБЫЛО · Волна {assault.WavesSpawned}/{assault.WaveCount}",
                     80, false, assault.WavesSpawned - arrived);
+            if (activeAssault && assault.WavesSpawned != arrived) Remove("wave");
             if (activeAssault && assault.HasPendingWave)
                 Put("wave", $"ВОЛНА {assault.WavesSpawned + 1}/{assault.WaveCount} · {assault.NextWaveDirection} · {assault.NextWaveSize} бойца · {assault.NextWaveSeconds:0.0} с",
                     assault.NextWaveSeconds <= 3 ? 90 : 50, true);
@@ -93,7 +96,7 @@ namespace NecromancerInfection
             started = assault && assault.HasStarted; arrived = assault ? assault.WavesSpawned : 0;
             current = null;
             foreach (var notice in notices)
-                if (current == null || notice.Priority > current.Priority) current = notice;
+                if (notice.Remaining > 0 && (current == null || notice.Priority > current.Priority)) current = notice;
             GetIndicators(manager.LevelCamera, new HUDLayout(Screen.width, Screen.height), indicators);
         }
 
@@ -126,17 +129,17 @@ namespace NecromancerInfection
             if (bell && bell.isActiveAndEnabled)
             {
                 if (bell.CanRun && bell.Runner && bell.Runner.IsRunning)
-                    AddIndicator(camera, bell.Runner.transform.position + Vector3.up, "Посыльный", layout, result);
-                AddGroup(camera, bell.Patrol, "Патруль", layout, result);
+                    AddIndicator(camera, bell.Runner.transform.position + Vector3.up, "Посыльный", HUDIcons.Bell, layout, result);
+                AddGroup(camera, bell.Patrol, "Патруль", HUDIcons.Swords, layout, result);
             }
             if (assault && assault.isActiveAndEnabled && manager.Farm && manager.Farm.isActiveAndEnabled)
             {
-                if (assault.HasPendingWave) AddIndicator(camera, assault.NextWavePosition, "Новая волна", layout, result);
-                AddGroup(camera, assault.Reinforcements, "Стража фермы", layout, result);
+                if (assault.HasPendingWave) AddIndicator(camera, assault.NextWavePosition, "Новая волна", HUDIcons.Swords, layout, result);
+                AddGroup(camera, assault.Reinforcements, "Стража фермы", HUDIcons.Farm, layout, result);
             }
         }
 
-        private void AddGroup(Camera camera, Transform group, string caption, HUDLayout layout, List<Indicator> result)
+        private void AddGroup(Camera camera, Transform group, string caption, Texture2D icon, HUDLayout layout, List<Indicator> result)
         {
             if (!group || !group.gameObject.activeInHierarchy) return;
             // Pick the nearest live offscreen defender; a visible member needs no pointer.
@@ -149,18 +152,19 @@ namespace NecromancerInfection
                 if (candidate >= distance) continue;
                 nearest = unit; distance = candidate;
             }
-            if (nearest) AddIndicator(camera, nearest.transform.position, caption, layout, result);
+            if (nearest) AddIndicator(camera, nearest.transform.position, caption, icon, layout, result);
         }
 
-        private static void AddIndicator(Camera camera, Vector3 position, string caption, HUDLayout layout, List<Indicator> result)
+        private static void AddIndicator(Camera camera, Vector3 position, string caption, Texture2D icon, HUDLayout layout, List<Indicator> result)
         {
             if (!TryPlaceIndicator(camera, position, layout, out var value)) return;
             value.Text = caption;
+            value.Icon = icon;
             for (int i = 0; i < result.Count; i++)
             {
                 var other = result[i];
                 if (!other.Bounds.Overlaps(value.Bounds)) continue;
-                other.Count++; other.Text = "Угрозы рядом"; result[i] = other; return;
+                other.Count++; other.Text = "Угрозы рядом"; other.Icon = HUDIcons.Swords; result[i] = other; return;
             }
             result.Add(value);
         }
@@ -180,7 +184,11 @@ namespace NecromancerInfection
             if (GetComponent<SoulProgression>() is SoulProgression progression && progression.IsChoosing) return;
             if (title == null)
             {
-                title = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, wordWrap = true };
+                title = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, wordWrap = true,
+                    normal = { textColor = Color.white }
+                };
                 detail = new GUIStyle(title) { fontSize = 12, fontStyle = FontStyle.Normal };
             }
             var layout = new HUDLayout(Screen.width, Screen.height);
@@ -188,40 +196,58 @@ namespace NecromancerInfection
             try
             {
                 GUI.matrix = Matrix4x4.Scale(new Vector3(layout.Scale, layout.Scale, 1)); GUI.depth = -30;
-                if (HasMessage)
-                {
-                    var r = layout.Warning;
-                    Fill(r, new Color(0.065f, 0.045f, 0.03f, 0.97f));
-                    GUI.color = current.Key == "prevented" ? new Color(0.6f, 1, 0.4f) : new Color(1, 0.73f, 0.35f);
-                    string suffix = current.Count > 1 ? $" · ×{current.Count}" : "";
-                    GUI.Label(new Rect(r.x + 10, r.y + 2, r.width - 20, 25), current.Text + suffix, title);
-                    var nextWave = notices.Find(item => item.Key == "wave");
-                    string secondary = nextWave != null && current != nextWave ? nextWave.Text
-                        : notices.Count > 1 ? $"В очереди: {notices.Count - 1} · Сообщения появятся по порядку"
-                        : current.Key == "runner" ? "ЛКМ по посыльному остановит тревогу"
-                        : current.Key == "prevented" ? "Дополнительный патруль не придёт"
-                        : "ПКМ по земле · Защитите орду";
-                    GUI.Label(new Rect(r.x + 10, r.y + 25, r.width - 20, 21), secondary, detail);
-                }
+                if (HasMessage) DrawNotice(layout.Warning);
                 foreach (var item in indicators)
                 {
                     var r = item.Bounds;
-                    Fill(r, new Color(0.065f, 0.045f, 0.03f, 0.94f));
-                    GUI.color = new Color(1, 0.73f, 0.35f);
-                    var pivot = new Vector2(r.x + 19, r.center.y);
+                    InterfaceTheme.Panel(r, InterfaceTheme.Brass);
+                    GUI.color = Urgent;
+                    var pivot = new Vector2(r.x + 15, r.center.y);
                     var side = new Vector2(-item.Direction.y, item.Direction.x);
                     Vector2 tip = pivot + item.Direction * 8;
                     DrawLine(pivot - item.Direction * 8, tip);
                     DrawLine(tip, pivot + item.Direction + side * 7);
                     DrawLine(tip, pivot + item.Direction - side * 7);
-                    GUI.Label(new Rect(r.x + 38, r.y + 3, r.width - 42, r.height - 6),
+                    GUI.DrawTexture(new Rect(r.x + 28, r.center.y - 8, 16, 16), item.Icon);
+                    GUI.color = InterfaceTheme.Ink;
+                    GUI.Label(new Rect(r.x + 49, r.y + 3, r.width - 57, r.height - 6),
                         item.Text + (item.Count > 1 ? $" ×{item.Count}" : ""), detail);
                 }
             }
             finally { GUI.matrix = matrix; GUI.color = color; GUI.depth = depth; }
         }
-        private static void Fill(Rect rect, Color color)
-        { GUI.color = color; GUI.DrawTexture(rect, Texture2D.whiteTexture); }
+        private void DrawNotice(Rect rect)
+        {
+            bool urgent = current.Priority >= 90;
+            Color accent = urgent ? Urgent : current.Key == "prevented" ? InterfaceTheme.Green : InterfaceTheme.Brass;
+            var icon = current.Key switch
+            {
+                "runner" or "alarm" or "prevented" => HUDIcons.Bell,
+                "assault" => HUDIcons.Farm,
+                _ => HUDIcons.Swords
+            };
+            InterfaceTheme.Panel(rect, accent);
+            GUI.color = accent;
+            GUI.DrawTexture(new Rect(rect.x + 15, rect.y + 12, 24, 24), icon);
+            if (urgent)
+            {
+                DrawLine(new Vector2(rect.x + 8, rect.y + 16), new Vector2(rect.x + 8, rect.y + 25));
+                InterfaceTheme.Fill(new Rect(rect.x + 6.5f, rect.y + 28, 3, 3), accent);
+            }
+
+            int separator = current.Text.IndexOf(" · ", System.StringComparison.Ordinal);
+            string headline = separator >= 0 ? current.Text.Substring(0, separator) : current.Text;
+            string context = separator >= 0 ? current.Text.Substring(separator + 3) : "Дополнительный патруль не придёт";
+            if (current.Key == "runner") context = "ЛКМ по посыльному остановит тревогу";
+            if (current.Count > 1) headline += $" · ×{current.Count}";
+            if (notices.Count > 1) headline += $" · +{notices.Count - 1}";
+            var nextWave = notices.Find(item => item.Key == "wave");
+            string secondary = nextWave != null && current != nextWave ? nextWave.Text : context;
+            GUI.color = urgent ? accent : InterfaceTheme.Ink;
+            GUI.Label(new Rect(rect.x + 46, rect.y + 5, rect.width - 57, 19), headline, title);
+            GUI.color = nextWave != null && nextWave.Priority >= 90 ? Urgent : InterfaceTheme.Ink;
+            GUI.Label(new Rect(rect.x + 46, rect.y + 24, rect.width - 57, 18), secondary, detail);
+        }
         private static void DrawLine(Vector2 from, Vector2 to)
         {
             var matrix = GUI.matrix;

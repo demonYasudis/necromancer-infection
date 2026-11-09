@@ -28,11 +28,12 @@ namespace NecromancerInfection.Editor
                     var remains = root.GetComponent<GuardRemains>();
                     if (!remains) remains = root.AddComponent<GuardRemains>();
                     var settings = new SerializedObject(remains);
+                    settings.FindProperty("raisedGuardPrefab").objectReferenceValue = undead.GetComponent<Zombie>();
                     if (!settings.FindProperty("corpsePrefab").objectReferenceValue)
                     {
                         settings.FindProperty("corpsePrefab").objectReferenceValue = corpse.GetComponent<GuardCorpse>();
-                        settings.ApplyModifiedPropertiesWithoutUndo();
                     }
+                    settings.ApplyModifiedPropertiesWithoutUndo();
                     PrefabUtility.SaveAsPrefabAsset(root, path);
                 }
                 finally { PrefabUtility.UnloadPrefabContents(root); }
@@ -40,7 +41,7 @@ namespace NecromancerInfection.Editor
             var scene = EditorSceneManager.OpenScene(DemoLevelSetup.ScenePath);
             EditorSceneManager.SaveScene(scene);
             AssetDatabase.SaveAssets();
-            Debug.Log("Normal/final guards leave single-use remains; LMB raising costs 35 energy. Raised guard: 150 HP, 12 damage, 1.2-second cooldown, speed 2.2.");
+            Debug.Log("Normal/final guards automatically rise for free. Raised guard: 150 HP, 12 damage, 1.2-second cooldown, speed 2.2.");
         }
 
         private static GameObject CreateUndead()

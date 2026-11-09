@@ -92,9 +92,10 @@ namespace NecromancerInfection.Editor
             zombie.transform.position -= manager.LevelCamera.transform.right * .03f;
             yield return .2;
             Require(visual.Image.flipX, "Left movement mirrors artwork");
-            Require(Quaternion.Angle(visual.transform.rotation, manager.LevelCamera.transform.rotation) < .01f,
-                "Artwork must face level camera regardless of root yaw");
+            Require(Vector3.Dot(visual.transform.forward, manager.LevelCamera.transform.forward) > .999f,
+                "Artwork must face level camera while its pose can roll in the image plane");
             zombie.Combat.enabled = true;
+            var restingTint = visual.Image.color;
             zombie.Combat.TakeDamage(1);
             yield return .04;
             Require(visual.Image.color.g < .9f, "Visible damage feedback");
@@ -104,7 +105,7 @@ namespace NecromancerInfection.Editor
             Require(visual.Image.color == tint, "Pause freezes feedback");
             Time.timeScale = 1;
             yield return .25;
-            Require(visual.Image.color == Color.white, "Hit tint settles");
+            Require(visual.Image.color == restingTint, "Hit tint settles to the character palette");
 
             // Temporary lineup in the actual level, never saved into either gameplay scene.
             Vector3 center = leader.transform.position;

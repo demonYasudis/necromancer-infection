@@ -34,6 +34,7 @@ namespace NecromancerInfection
 
         private void Awake()
         {
+            if (!GetComponent<DefenderInfection>()) gameObject.AddComponent<DefenderInfection>();
             warningMaterial = new Material(Shader.Find("Sprites/Default")) { name = "CrossbowWarning" };
             aimLine = CreateLine("AimWarning", 2);
             targetRing = CreateLine("TargetWarning", 48);

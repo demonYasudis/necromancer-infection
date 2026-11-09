@@ -47,7 +47,11 @@ namespace NecromancerInfection.Editor
         }
 
         private static void Watch(string message, string stack, LogType type)
-        { if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert) error = message; }
+        {
+            if (Application.isBatchMode && stack.Contains("UnityEditor.Search.SearchDatabase")
+                && stack.Contains("UnityEditor.Search.SearchInit.IndexationOnStartup")) return;
+            if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert) error = message;
+        }
 
         private static void Tick()
         {
@@ -152,6 +156,8 @@ namespace NecromancerInfection.Editor
                 Require(p.IsChoosing && p.Level == 2 && p.Experience == 0 && Time.timeScale == 0, "Four unique conversions open a paused choice");
                 Require(p.Offers.Count == 3 && p.Offers[0] != p.Offers[1] && p.Offers[0] != p.Offers[2] && p.Offers[1] != p.Offers[2], "Three distinct cards");
                 Require(!guide.IsVisible && AbilityPointer.IsBlocked(new Vector2(Screen.width / 2, Screen.height / 2)), "Modal hides tutorial and blocks abilities");
+                Require(manager.TryPauseGame() && p.IsChoosing && !p.TryChoose(0), "Pause menu takes input while the upgrade remains pending");
+                Require(manager.TryResumeGame() && p.IsChoosing && Time.timeScale == 0, "Closing the menu leaves the upgrade pause active");
                 float elapsed = (float)manager.ElapsedSeconds;
                 float frozenEnergy = manager.Necromancer.Energy.Current;
                 yield return .2;

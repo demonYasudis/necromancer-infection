@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Terrain JourneyLevel
+  m_Shader: {fileID: 4800000, guid: 0b10ece2d25c4de4e89f53b2d4869471, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords:
+  - VILLAGE_TERRAIN
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _MainTex:
+        m_Texture: {fileID: 2800000, guid: 0f527d0416ca92743a5fa4120720330a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _TileMeters: 6
+    m_Colors:
+    - _Cell: {r: 0, g: 1, b: 0, a: 0}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _Road0: {r: -15.416666, g: 0, b: 28.916666, a: 2.5}
+    - _Road1: {r: 11, g: 20, b: 2.5, a: 22.5}
+    - _Road2: {r: -15.416666, g: 40, b: 28.916666, a: 2.5}
+    - _Road3: {r: -41.833332, g: 60, b: 2.5, a: 22.5}
+    - _Road4: {r: -15.416666, g: 80, b: 28.916666, a: 2.5}
+    - _Road5: {r: 11, g: 83.8, b: 3.8, a: 3.6}
+    - _Road6: {r: 11, g: 77.3, b: 2.15, a: 3.6}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

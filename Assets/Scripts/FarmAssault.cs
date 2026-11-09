@@ -67,6 +67,14 @@ namespace NecromancerInfection
         public event Action Captured;
         public event Action<int> WaveArrived;
 
+        internal void AddApproachPositions(System.Collections.Generic.List<Vector3> positions)
+        {
+            if (!isActiveAndEnabled || !started) return;
+            foreach (var wave in waves)
+                foreach (int index in wave.pointIndices)
+                    positions.Add(reinforcementPoints[index].position);
+        }
+
         private void Awake()
         {
             target = GetComponent<CaptureTarget>();

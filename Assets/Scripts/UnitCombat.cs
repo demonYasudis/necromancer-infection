@@ -46,6 +46,8 @@ namespace NecromancerInfection
 
         private void OnDisable() => CancelMelee();
 
+        public void CancelAttack() => CancelMelee();
+
         private void CancelMelee()
         {
             IsMeleeAttacking = false;
@@ -104,7 +106,8 @@ namespace NecromancerInfection
 
         public bool TakeDamage(int amount, UnitCombat attacker = null)
         {
-            if (!isActiveAndEnabled || !IsAlive || amount <= 0 || Time.timeScale <= 0) return false;
+            if (!isActiveAndEnabled || !IsAlive || amount <= 0 || Time.timeScale <= 0
+                || (TryGetComponent<DefenderInfection>(out var infection) && infection.IsInfected)) return false;
             float incoming = amount * ProtectionArea.IncomingDamageMultiplier(this);
             if (incoming <= 0) return false;
             currentHealth = Mathf.Max(0, currentHealth - incoming);

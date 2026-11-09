@@ -241,11 +241,11 @@ namespace NecromancerInfection.Editor
                         : SessionState.GetBool(AlarmKey, false)
                         ? "All village alarm checks passed (runner detection/movement, paid infection, death, pause, single patrol, combat and retry)."
                         : SessionState.GetBool(RaisedGuardKey, false)
-                        ? "All raised-guard checks passed (corpses, paid LMB raising, heavy combat, resource/statistics semantics, protection and retry)."
+                        ? "All raised-guard checks passed (free automatic resurrection, heavy combat, resource/statistics semantics, protection and retry)."
                         : SessionState.GetBool(CrossbowKey, false)
                         ? "All crossbow integration checks passed (warning, bolts, protection, cooldown, walls/range, pause, target lifecycle, defender rewards and retry)."
                         : SessionState.GetBool(CrowdKey, false)
-                        ? "All crowd integration checks passed (30-member formation, narrow passage, walls/leash, attack ranks, pause and reload)."
+                        ? "All crowd integration checks passed (5/20/50-member front, narrow passage, walls/leash, attack ranks, finale, pause and reload)."
                         : "All prototype integration checks passed (infection, horde, combat, guards, dark energy, protection, defeat/retry, farm, final assault, victory/statistics/retry, visual feedback/UI, crowd movement, crossbowmen).");
             }
             catch (Exception exception)
@@ -334,6 +334,11 @@ namespace NecromancerInfection.Editor
             yield return 0.1f;
             Require(zombie.CurrentTarget == near.Combat && zombie.State == Zombie.BehaviourState.PursuingTarget,
                 "Zombie must select the nearest available human.");
+            Vector3 farPosition = far.transform.position;
+            far.transform.position = zombie.transform.position + Vector3.forward * .65f;
+            yield return .1f;
+            Require(zombie.CurrentTarget == near.Combat, "A closer arrival must not interrupt a valid pursuit.");
+            far.transform.position = farPosition;
             zombie.transform.position = near.transform.position - Vector3.right * 0.8f;
             yield return 0.1f;
             Require(zombie.State == Zombie.BehaviourState.Attacking, "Zombie must enter combat at attack distance.");
@@ -531,8 +536,15 @@ namespace NecromancerInfection.Editor
                 "Necromancer HP facade must use the shared health component.");
             Debug.Log("PASS: invalid damage, non-zombie death, infection/death race, zombie death and shared necromancer HP.");
 
+            var chainChecks = ChainInfectionChecks(leader, prefab);
+            while (chainChecks.MoveNext()) yield return chainChecks.Current;
+        }
+
+        internal static IEnumerator ChainInfectionChecks(Necromancer leader, Zombie prefab)
+        {
             foreach (var unit in Object.FindObjectsByType<Zombie>(FindObjectsSortMode.None)) Object.Destroy(unit.gameObject);
             foreach (var human in Object.FindObjectsByType<Civilian>(FindObjectsSortMode.None)) Object.Destroy(human.gameObject);
+            leader.transform.position = Vector3.zero;
             yield return 0.1f;
             var seed = Object.Instantiate(prefab, new Vector3(-1, 0, 0), Quaternion.identity);
             seed.Initialize(leader);
@@ -552,7 +564,7 @@ namespace NecromancerInfection.Editor
             yield return 2f;
             foreach (var unit in Object.FindObjectsByType<Zombie>(FindObjectsSortMode.None))
                 Require(unit.State == Zombie.BehaviourState.Following && !unit.CurrentTarget
-                    && Vector3.Distance(unit.transform.position, leader.transform.position) <= 1.6f,
+                    && Vector3.Distance(unit.transform.position, leader.transform.position) < unit.MaxHordeDistance,
                     "After actual combat, surviving zombies must return to their leader.");
             Debug.Log("PASS: autonomous chain infection grows 1 -> 4 zombies and all return after combat.");
         }
@@ -575,6 +587,9 @@ namespace NecromancerInfection.Editor
 
         private static void WatchErrors(string message, string stack, LogType type)
         {
+            // Unity 6000.3 editor search can fail during fresh batch startup; this is not a game exception.
+            if (Application.isBatchMode && stack.Contains("UnityEditor.Search.SearchDatabase")
+                && stack.Contains("UnityEditor.Search.SearchInit.IndexationOnStartup")) return;
             if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert)
                 runtimeError = message;
         }

@@ -106,8 +106,8 @@ namespace NecromancerInfection.Editor
             defender.enabled = false; defender.Combat.TakeDamage(1000);
             yield return 0.05f;
             var corpse = Object.FindFirstObjectByType<GuardCorpse>();
-            Require(corpse && corpse.TryRaise(leader, 35) && !corpse.TryRaise(leader, 35),
-                "A real corpse must create one heavy and reject reuse.");
+            Require(!corpse && Object.FindObjectsByType<RaisedGuard>(FindObjectsSortMode.None).Length == 1,
+                "A real guard death automatically creates one heavy without a corpse.");
             var heavy = Object.FindFirstObjectByType<RaisedGuard>();
             heavy.GetComponent<Zombie>().enabled = false;
             var heavyMotion = heavy.GetComponent<CombatMotion>();
@@ -115,7 +115,7 @@ namespace NecromancerInfection.Editor
             float standingHeight = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/RaisedGuard.prefab")
                 .transform.Find("Helmet").localPosition.y;
             Require(heavyMotion.CurrentTransformation == CombatMotion.Transformation.HeavyRise && helmet.localPosition.y < 0.6f
-                && leader.Energy.Current == 65 && manager.InfectedCount == 2 && manager.GuardsKilled == 1,
+                && leader.Energy.Current == 100 && manager.InfectedCount == 2 && manager.GuardsKilled == 1,
                 "The heavy starts on the ground without a conversion rebate or false infection statistic.");
             yield return 0.18f;
             Capture(manager.LevelCamera, heavy.transform.position, "transformation-heavy");
@@ -126,14 +126,14 @@ namespace NecromancerInfection.Editor
             Time.timeScale = 1;
             yield return 0.65f;
             Require(!corpse && heavyMotion.CurrentTransformation == CombatMotion.Transformation.None
-                && Mathf.Abs(helmet.localPosition.y - standingHeight) < 0.001f && leader.Energy.Current == 65,
+                && Mathf.Abs(helmet.localPosition.y - standingHeight) < 0.001f && leader.Energy.Current == 100,
                 "Heavy rise ends in the authored standing pose without any extra unit or reward.");
             Capture(manager.LevelCamera, heavy.transform.position, "transformation-heavy-standing");
 
             var grave = Object.FindFirstObjectByType<Grave>();
             Require(grave.TryRaise(leader) && !grave.TryRaise(leader), "Skeleton assembly must preserve single-use grave semantics.");
             var skeletons = Object.FindObjectsByType<Skeleton>(FindObjectsSortMode.None);
-            Require(skeletons.Length == 3 && leader.Energy.Current == 35, "Assembly creates precisely three skeletons for 30 energy.");
+            Require(skeletons.Length == 3 && leader.Energy.Current == 70, "Assembly creates precisely three skeletons for 30 energy.");
             foreach (var skeleton in skeletons)
             {
                 skeleton.GetComponent<Zombie>().enabled = false;
@@ -154,7 +154,7 @@ namespace NecromancerInfection.Editor
             skeletons[0].GetComponent<UnitCombat>().TakeDamage(1000);
             yield return 0.7f;
             Require(Object.FindObjectsByType<Skeleton>(FindObjectsSortMode.None).Length == 2
-                && leader.Energy.Current == 35 && manager.InfectedCount == 2 && manager.GuardsKilled == 1,
+                && leader.Energy.Current == 70 && manager.InfectedCount == 2 && manager.GuardsKilled == 1,
                 "A skeleton killed during assembly must stay dead; no finish callback may respawn or reward it.");
             Vector3 skullRest = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Skeleton.prefab")
                 .transform.Find("Skull").localPosition;

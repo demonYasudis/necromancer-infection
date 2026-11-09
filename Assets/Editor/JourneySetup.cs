@@ -126,7 +126,7 @@ namespace NecromancerInfection.Editor
             EditorSceneManager.SaveScene(scene);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true), new EditorBuildSettingsScene(DemoLevelSetup.ScenePath, true) };
             AssetDatabase.SaveAssets();
-            Debug.Log("JourneyLevel authored: 681.5m, three districts, seven patrols, three crossbows, 93 residents, alarm and optional graveyard.");
+            TwoMinuteLevelSetup.Create();
         }
 
         private static void Spawn(string path, Transform parent, string name, Vector3 position)

@@ -57,7 +57,30 @@ namespace NecromancerInfection.Editor
             Debug.Log("Installed approved necromancer, zombie peasant and guard artwork, including both reinforcement prefabs.");
         }
 
-        private static Sprite Import(string relativePath)
+        internal static void InstallDirections()
+        {
+            string[] assets = { "necromancer", "zombie", "guard", "guard", "guard", "crossbowman", "raised-guard", "skeleton" };
+            string[] prefabs = { Prefabs[0], Prefabs[1], Prefabs[2], Prefabs[3], Prefabs[4],
+                "Assets/Prefabs/Crossbowman.prefab", "Assets/Prefabs/RaisedGuard.prefab", "Assets/Prefabs/Skeleton.prefab" };
+            float[] pivots = { .037f, .056f, .057f, .057f, .057f, .033f, .038f, .060f };
+            Sprite rear = null;
+            for (int i = 0; i < prefabs.Length; i++)
+            {
+                if (i == 0 || assets[i] != assets[i - 1])
+                    rear = Import($"Village/Directions/{assets[i]}-rear-v1.png", pivots[i]);
+                var root = PrefabUtility.LoadPrefabContents(prefabs[i]);
+                try
+                {
+                    var visual = new SerializedObject(root.GetComponentInChildren<CharacterSpriteVisual>(true));
+                    visual.FindProperty("rear").objectReferenceValue = rear;
+                    visual.ApplyModifiedPropertiesWithoutUndo();
+                    PrefabUtility.SaveAsPrefabAsset(root, prefabs[i]);
+                }
+                finally { PrefabUtility.UnloadPrefabContents(root); }
+            }
+        }
+
+        private static Sprite Import(string relativePath, float pivotY = .035f)
         {
             string path = "Assets/Art/" + relativePath;
             var importer = AssetImporter.GetAtPath(path) as TextureImporter;
@@ -68,7 +91,7 @@ namespace NecromancerInfection.Editor
             var settings = new TextureImporterSettings();
             importer.ReadTextureSettings(settings);
             settings.spriteAlignment = (int)SpriteAlignment.Custom;
-            settings.spritePivot = new Vector2(.5f, .035f);
+            settings.spritePivot = new Vector2(.5f, pivotY);
             importer.SetTextureSettings(settings);
             importer.alphaSource = TextureImporterAlphaSource.FromInput;
             importer.alphaIsTransparency = true;

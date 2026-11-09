@@ -37,6 +37,7 @@ namespace NecromancerInfection
         private float nextStepSample;
         private double pausedAt;
         private bool finished;
+        private float EffectsGain => masterVolume * GameSettings.Effects;
 
         public bool IsPaused { get; private set; }
         public bool IsCorrupting => corruption && corruption.clip && corruption.volume > 0;
@@ -139,7 +140,7 @@ namespace NecromancerInfection
 
         public bool TryPlay(Cue cue, Vector3 position)
         {
-            if (!CanPlay || masterVolume <= 0) return false;
+            if (!CanPlay || EffectsGain <= 0) return false;
             int type = (int)cue;
             double now = Time.unscaledTimeAsDouble;
             if (Time.time < nextAllowed[type]) { DroppedSounds++; return false; }
@@ -163,7 +164,7 @@ namespace NecromancerInfection
                 voice.endsAt = now + clips[type].length / voice.source.pitch;
                 nextAllowed[type] = Time.time + Intervals[type];
                 played[type]++;
-                voice.source.volume = gain * masterVolume * Duck(cue);
+                voice.source.volume = gain * EffectsGain * Duck(cue);
                 voice.source.Play();
                 return true;
             }
@@ -204,7 +205,8 @@ namespace NecromancerInfection
                 IsPaused = paused;
             }
             if (paused) return;
-            foreach (var voice in voices) voice.source.volume = voice.gain * masterVolume * Duck(voice.cue);
+            float effects = EffectsGain;
+            foreach (var voice in voices) voice.source.volume = voice.gain * effects * Duck(voice.cue);
             UpdateCorruption();
             if (Time.time < nextStepSample) return;
             nextStepSample = Time.time + 0.1f;
@@ -237,7 +239,7 @@ namespace NecromancerInfection
                 active = offset.sqrMagnitude <= manager.Farm.ActivationRadius * manager.Farm.ActivationRadius;
             }
             if (!active) { corruption.Stop(); corruption.volume = 0; return; }
-            corruption.volume = masterVolume * Mathf.Lerp(0.07f, 0.32f, assault.Progress);
+            corruption.volume = EffectsGain * Mathf.Lerp(0.07f, 0.32f, assault.Progress);
             corruption.pitch = Mathf.Lerp(0.75f, 1.45f, assault.Progress);
             if (!corruption.isPlaying) corruption.Play();
         }

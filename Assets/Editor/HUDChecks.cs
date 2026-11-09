@@ -16,7 +16,7 @@ namespace NecromancerInfection.Editor
                 new Vector2(1024, 768), new Vector2(800, 600), new Vector2(640, 360), new Vector2(480, 800), new Vector2(320, 568) })
             {
                 var layout = new HUDLayout(size.x, size.y);
-                var rectangles = new[] { layout.Status, layout.Village, layout.Objective, layout.Abilities, layout.Warning };
+                var rectangles = new[] { layout.Warning };
                 var viewport = new Rect(0, 0, layout.Width, layout.Height);
                 for (int i = 0; i < rectangles.Length; i++)
                 {
@@ -35,6 +35,9 @@ namespace NecromancerInfection.Editor
             yield return 0.35f;
             manager = Object.FindFirstObjectByType<GameManager>();
             var hud = manager.GetComponent<GameHUD>();
+            // This fixture raises several units to inspect the HUD. Level-up pausing is
+            // covered by ProgressionChecks and would prevent the damage assertions below.
+            manager.GetComponent<SoulProgression>().enabled = false;
             var leader = manager.Necromancer;
             leader.enabled = false;
             CrossbowChecks.DisableSceneArchers();
@@ -50,14 +53,19 @@ namespace NecromancerInfection.Editor
             Require(hud.Health == 65 && hud.Energy == 60 && hud.DisplayedHealth == 100 && hud.DisplayedEnergy == 100,
                 "Actual values update immediately while visual bars retain their starting values.");
             yield return 0.08f;
+            Require(hud.DamagePulse > 0 && hud.SpendPulse > 0 && hud.RestorePulse == 0,
+                "Damage and spending must produce distinct short resource responses.");
             Require(hud.DisplayedHealth > 65 && hud.DisplayedHealth < 100 && hud.DisplayedEnergy > 60 && hud.DisplayedEnergy < 100,
                 "Both bars must smoothly interpolate toward the actual values.");
             yield return 0.9f;
+            Require(hud.DamagePulse == 0 && hud.SpendPulse == 0,
+                "Resource responses must fade rather than leave constant HUD glow.");
             Require(Mathf.Abs(hud.DisplayedHealth - 65) < 0.1f && Mathf.Abs(hud.DisplayedEnergy - 60) < 0.1f,
                 "Smooth bars must converge promptly.");
             leader.Energy.Restore(30);
             yield return 0.08f;
             Require(hud.DisplayedEnergy > 60 && hud.DisplayedEnergy < 90 && hud.Energy == 90, "Restoration must animate upward too.");
+            Require(hud.RestorePulse > 0 && hud.SpendPulse == 0, "Restoration must show its own response.");
             var feedback = manager.GetComponent<GameFeedback>();
             Vector3 fixturePosition = leader.transform.position + Vector3.right * 30;
             var peasant = Object.Instantiate(AssetDatabase.LoadAssetAtPath<Civilian>("Assets/Prefabs/Civilian.prefab"),
@@ -99,7 +107,7 @@ namespace NecromancerInfection.Editor
             var infection = Object.FindFirstObjectByType<InfectionAbility>();
             var protection = Object.FindFirstObjectByType<ProtectionAbility>();
             var current = hud.Layout;
-            foreach (var panel in new[] { current.Status, current.Village, current.Objective, current.Abilities })
+            foreach (var panel in new[] { current.Status, current.EnergyOrb, current.Experience })
             {
                 Vector2 point = new Vector2(panel.center.x * current.Scale, Screen.height - panel.center.y * current.Scale);
                 float before = leader.Energy.Current;

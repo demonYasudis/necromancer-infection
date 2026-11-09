@@ -10,6 +10,9 @@ namespace NecromancerInfection
         [SerializeField] private Transform arrivalPoint;
         [SerializeField] private Guard guardPrefab;
         [SerializeField] private Transform[] patrolPoints = new Transform[0];
+        [SerializeField] private Crossbowman archerPrefab;
+        [SerializeField] private Transform[] archerPoints = new Transform[0];
+        [SerializeField] private bool tutorialTrigger;
         [SerializeField, Min(0.1f)] private float activationRadius = 0.75f;
         [SerializeField] private Renderer bellVisual;
         public bool IsRaised { get; private set; }
@@ -35,6 +38,19 @@ namespace NecromancerInfection
             Vector3 offset = messenger.transform.position - ArrivalPoint.position;
             offset.y = 0;
             if (offset.sqrMagnitude > activationRadius * activationRadius) return false;
+            return Raise();
+        }
+
+        public bool TryRaiseTutorial()
+        {
+            if (!tutorialTrigger || !CanRun || Time.timeScale <= 0 || !manager.FinalPhase
+                || !guardPrefab || !archerPrefab || patrolPoints.Length != 2 || archerPoints.Length != 2
+                || System.Array.Exists(patrolPoints, p => !p) || System.Array.Exists(archerPoints, p => !p)) return false;
+            return Raise();
+        }
+
+        private bool Raise()
+        {
             IsRaised = true;
             Rang?.Invoke(this);
             Patrol = new GameObject("AlarmPatrol").transform;
@@ -44,6 +60,9 @@ namespace NecromancerInfection
                 var guard = Instantiate(guardPrefab, point.position, point.rotation, Patrol);
                 guard.name = "AlarmGuard";
             }
+            if (archerPrefab)
+                foreach (var point in archerPoints)
+                    Instantiate(archerPrefab, point.position, point.rotation, Patrol).name = "AlarmArcher";
             SetColor(new Color(1, 0.3f, 0.1f));
             return true;
         }

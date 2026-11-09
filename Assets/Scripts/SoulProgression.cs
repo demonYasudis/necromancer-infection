@@ -15,13 +15,11 @@ namespace NecromancerInfection
         private readonly List<Upgrade> offers = new List<Upgrade>();
         private readonly int[] ranks = new int[4];
         private System.Random random;
-        private bool ownsPause;
-        private float previousScale;
         private int unlockFrame;
         public int Level { get; private set; } = 1;
         public int Experience { get; private set; }
         public int RequiredExperience => 4 + (Level - 1) * 3;
-        public bool IsChoosing => isActiveAndEnabled && manager && !manager.IsFinished && offers.Count == 3;
+        public bool IsChoosing => isActiveAndEnabled && manager && !manager.IsFinished && !manager.IsRestarting && offers.Count == 3;
         public IReadOnlyList<Upgrade> Offers => offers;
         public int Rank(Upgrade upgrade) => ranks[(int)upgrade];
 
@@ -53,12 +51,11 @@ namespace NecromancerInfection
         {
             if (!manager || manager.IsFinished || manager.IsRestarting)
             { offers.Clear(); ReleasePause(); return; }
-            if (IsChoosing && !ownsPause && Time.timeScale > 0)
+            if (IsChoosing && Time.timeScale > 0 && manager.TryPauseForUpgrade())
             {
-                previousScale = Time.timeScale; ownsPause = true; Time.timeScale = 0;
                 unlockFrame = Time.frameCount + 1;
             }
-            if (!IsChoosing && Experience >= RequiredExperience && Time.timeScale > 0)
+            if (!IsChoosing && Experience >= RequiredExperience && Time.timeScale > 0 && manager.TryPauseForUpgrade())
             {
                 Experience -= RequiredExperience; Level++;
                 var pool = new List<Upgrade>((Upgrade[])Enum.GetValues(typeof(Upgrade)));
@@ -66,19 +63,17 @@ namespace NecromancerInfection
                 {
                     int index = random.Next(pool.Count); offers.Add(pool[index]); pool.RemoveAt(index);
                 }
-                previousScale = Time.timeScale; ownsPause = true; Time.timeScale = 0;
                 unlockFrame = Time.frameCount + 1;
             }
         }
         private void ReleasePause()
         {
-            if (!ownsPause) return;
-            if (Time.timeScale == 0 && (!manager || !manager.IsFinished)) Time.timeScale = previousScale;
-            ownsPause = false;
+            if (manager) manager.ResumeAfterUpgrade();
         }
         public bool TryChoose(int index)
         {
-            if (!IsChoosing || !ownsPause || Time.frameCount <= unlockFrame || index < 0 || index >= offers.Count) return false;
+            if (!IsChoosing || !manager.IsUpgradePaused || manager.IsPaused
+                || Time.frameCount <= unlockFrame || index < 0 || index >= offers.Count) return false;
             var upgrade = offers[index];
             var infection = FindFirstObjectByType<InfectionAbility>();
             var protection = FindFirstObjectByType<ProtectionAbility>();

@@ -23,9 +23,16 @@ namespace NecromancerInfection.Editor
 
         static JourneyChecks() { EditorApplication.update += Tick; }
 
+        [MenuItem("Necromancer Infection/Run Journey Checks %&o")]
         public static void RunBatch()
         {
+            if (EditorApplication.isPlayingOrWillChangePlaymode || EditorSceneManager.GetActiveScene().isDirty) return;
+            deadline = pauseUntil = 0;
+            nextAction = nextShield = nextReport = 0;
+            phase = stages = casts = infections = screenshots = 0;
+            error = null;
             EditorSceneManager.OpenScene(JourneySetup.ScenePath);
+            Physics.SyncTransforms();
             var manager = Object.FindFirstObjectByType<GameManager>();
             var journey = manager.GetComponent<JourneyRoute>();
             Require(journey, "Journey component missing.");
@@ -71,7 +78,7 @@ namespace NecromancerInfection.Editor
                 var leader = manager.Necromancer;
                 if (phase == 0)
                 {
-                    Require(Mathf.Abs(journey.Length - 681.5f) < 0.1f, "Authored route must last 340.75 seconds at speed 2.");
+                    Require(Mathf.Abs(journey.Length - 240f) < 0.1f, "Authored route must last 120 seconds at speed 2.");
                     pausedPosition = leader.transform.position;
                     Time.timeScale = 0;
                     pauseUntil = EditorApplication.timeSinceStartup + 0.3;
@@ -121,7 +128,7 @@ namespace NecromancerInfection.Editor
                 if (manager.IsVictorious)
                 {
                     Require(stages == 7 && infections > 0 && casts > 0 && manager.GuardsKilled >= 18, "Full run did not exercise stages, abilities and combat.");
-                    Require(manager.ElapsedSeconds >= 350 && manager.ElapsedSeconds <= 365, "Duration outside the expected 5–6 minute range.");
+                    Require(manager.ElapsedSeconds >= 130 && manager.ElapsedSeconds <= 155, "Duration outside the expected route plus final assault range.");
                     Debug.Log($"PASS: victory at {manager.ElapsedSeconds:0.0}s, infected {manager.InfectedCount}, guards {manager.GuardsKilled}, survivors {manager.SurvivingUndead}, LMB {infections}, shields {casts}.");
                     original = manager;
                     Require(manager.TryRestartLevel(), "Victory retry failed.");
@@ -133,7 +140,7 @@ namespace NecromancerInfection.Editor
                     Debug.Log($"JOURNEY {manager.ElapsedSeconds:0}s / {journey.DistanceTravelled:0}m / HP {leader.CurrentHealth} / horde {manager.GetComponent<GameFeedback>().HordeSize} / kills {manager.GuardsKilled}");
                     nextReport += 30;
                 }
-                if (journey.DistanceTravelled > 40 && screenshots == 0 || journey.DistanceTravelled > 300 && screenshots == 1 || journey.DistanceTravelled > 550 && screenshots == 2)
+                if (journey.DistanceTravelled > 40 && screenshots == 0 || journey.DistanceTravelled > 105 && screenshots == 1 || journey.DistanceTravelled > 193 && screenshots == 2)
                     Capture(manager.LevelCamera, ++screenshots);
                 if (Time.time < nextAction) return;
                 nextAction = Time.time + 0.3f;
@@ -200,7 +207,10 @@ namespace NecromancerInfection.Editor
             SessionState.SetBool(Key, false);
             Application.logMessageReceived -= Watch;
             if (success) Debug.Log("PASS: " + message); else Debug.LogError("FAIL: " + message);
-            EditorApplication.Exit(success ? 0 : 1);
+            Time.timeScale = 1;
+            Time.maximumDeltaTime = 1f / 3f;
+            if (Application.isBatchMode) EditorApplication.Exit(success ? 0 : 1);
+            else EditorApplication.ExitPlaymode();
         }
     }
 }

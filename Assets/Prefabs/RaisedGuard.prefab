@@ -372,9 +372,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 57b8275c14c5f6c47b75455905657bf2, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NecromancerInfection.CharacterSpriteVisual
   Image: {fileID: 1481933268450454696}
+  rear: {fileID: 21300000, guid: 6908842abebcb9e4e92378260d8ed38b, type: 3}
 --- !u!1 &2720727598355486323
 GameObject:
   m_ObjectHideFlags: 0

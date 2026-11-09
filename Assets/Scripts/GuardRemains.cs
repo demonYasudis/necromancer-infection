@@ -6,7 +6,9 @@ namespace NecromancerInfection
     [DisallowMultipleComponent]
     public sealed class GuardRemains : MonoBehaviour
     {
+        // Older scene/prefab references supply the undead asset without creating a corpse.
         [SerializeField] private GuardCorpse corpsePrefab;
+        [SerializeField] private Zombie raisedGuardPrefab;
         private UnitCombat combat;
         private bool created;
 
@@ -23,10 +25,23 @@ namespace NecromancerInfection
 
         private void OnDeath(UnitCombat attacker)
         {
-            if (created || !corpsePrefab) return;
+            var prefab = raisedGuardPrefab ? raisedGuardPrefab : corpsePrefab ? corpsePrefab.RaisedGuardPrefab : null;
+            if (created || !prefab) return;
             created = true;
-            var corpse = Instantiate(corpsePrefab, transform.position, transform.rotation);
-            corpse.name = "GuardCorpse";
+            foreach (var manager in FindObjectsByType<GameManager>(FindObjectsSortMode.None))
+            {
+                if (manager.gameObject.scene != gameObject.scene) continue;
+                var leader = manager.Necromancer;
+                if (manager.IsFinished || manager.IsRestarting || !leader || !leader.gameObject.activeInHierarchy
+                    || !leader.Combat.IsAlive) return;
+                // Spawn synchronously so a last boss joins the victory count before time freezes.
+                var undead = Instantiate(prefab, transform.position, transform.rotation);
+                UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(undead.gameObject, gameObject.scene);
+                undead.name = "RaisedGuard";
+                undead.GetComponent<CombatMotion>().BeginRising();
+                undead.Initialize(leader);
+                return;
+            }
         }
     }
 }

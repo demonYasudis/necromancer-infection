@@ -16,6 +16,10 @@ namespace NecromancerInfection
         private GUIStyle title, text, small, number, right, state, columnTitle;
         private GUIStyle abilityTitle, abilityDetail;
         private bool initialized;
+        private float previousHealth, previousEnergy, regenerationClock;
+        public float DamagePulse { get; private set; }
+        public float SpendPulse { get; private set; }
+        public float RestorePulse { get; private set; }
         public float DisplayedHealth { get; private set; }
         public float DisplayedEnergy { get; private set; }
         public float Health => manager && manager.Necromancer ? manager.Necromancer.CurrentHealth : 0;
@@ -39,12 +43,31 @@ namespace NecromancerInfection
 
         private void SnapValues()
         {
-            DisplayedHealth = Health; DisplayedEnergy = Energy; initialized = true;
+            DisplayedHealth = previousHealth = Health;
+            DisplayedEnergy = previousEnergy = Energy;
+            DamagePulse = SpendPulse = RestorePulse = regenerationClock = 0;
+            initialized = true;
         }
 
         private void Update()
         {
             if (!initialized) return;
+            float dt = Time.unscaledDeltaTime;
+            DamagePulse = Mathf.Max(0, DamagePulse - dt / .45f);
+            SpendPulse = Mathf.Max(0, SpendPulse - dt / .45f);
+            RestorePulse = Mathf.Max(0, RestorePulse - dt / .55f);
+            regenerationClock = Mathf.Max(0, regenerationClock - dt);
+            if (Health < previousHealth - .001f) DamagePulse = 1;
+            float change = Energy - previousEnergy;
+            if (change < -.001f)
+            {
+                SpendPulse = 1; RestorePulse = 0; regenerationClock = 1.5f;
+            }
+            else if (change > .001f && (change >= 1 || regenerationClock <= 0))
+            {
+                RestorePulse = 1; SpendPulse = 0; regenerationClock = 2;
+            }
+            previousHealth = Health; previousEnergy = Energy;
             // Presentation continues to settle while paused; actual values and actions never lag.
             float blend = 1 - Mathf.Exp(-Time.unscaledDeltaTime / 0.14f);
             DisplayedHealth = Smooth(DisplayedHealth, Health, blend);
@@ -58,8 +81,7 @@ namespace NecromancerInfection
         {
             var layout = Layout;
             var notifications = GetComponent<GameNotifications>();
-            var guide = GetComponent<OnboardingGuide>();
-            return IsVisible && layout.Contains(layout.FromScreen(position, Screen.height), (notifications && notifications.HasMessage) || (guide && guide.IsVisible));
+            return IsVisible && layout.Contains(layout.FromScreen(position, Screen.height), manager.Objective || (notifications && notifications.HasMessage));
         }
 
         public bool OverlapsWorldLabel(Rect rect, float sourceScale)
@@ -70,7 +92,7 @@ namespace NecromancerInfection
             var bounds = new Rect(rect.position * ratio, rect.size * ratio);
             var notifications = GetComponent<GameNotifications>();
             var guide = GetComponent<OnboardingGuide>();
-            return layout.Overlaps(bounds, guide && guide.IsVisible) || (notifications && notifications.OverlapsWorldLabel(bounds));
+            return layout.Overlaps(bounds, manager.Objective) || (notifications && notifications.OverlapsWorldLabel(bounds));
         }
 
         private void Styles()
@@ -79,7 +101,7 @@ namespace NecromancerInfection
             title = new GUIStyle(GUI.skin.label) { fontSize = 17, fontStyle = FontStyle.Bold };
             text = new GUIStyle(GUI.skin.label) { fontSize = 14 };
             small = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true };
-            number = new GUIStyle(title) { fontSize = 26, alignment = TextAnchor.MiddleCenter };
+            number = new GUIStyle(title) { fontSize = 26, alignment = TextAnchor.MiddleCenter, wordWrap = false };
             right = new GUIStyle(text) { alignment = TextAnchor.MiddleRight };
             state = new GUIStyle(small) { alignment = TextAnchor.MiddleRight, wordWrap = false };
             columnTitle = new GUIStyle(small) { alignment = TextAnchor.MiddleCenter };
@@ -100,97 +122,48 @@ namespace NecromancerInfection
                 var layout = Layout;
                 GUI.depth = -20;
                 GUI.matrix = Matrix4x4.Scale(new Vector3(layout.Scale, layout.Scale, 1));
-                DrawStatus(layout.Status); DrawVillage(layout.Village);
-                DrawObjective(layout.Objective); DrawAbilities(layout.Abilities);
+                DrawStatus(layout);
+                var notices = GetComponent<GameNotifications>();
+                if (manager.Objective && !(notices && notices.HasMessage))
+                {
+                    Rect r = layout.Warning;
+                    InterfaceTheme.Panel(r, Brass);
+                    GUI.Label(new Rect(r.x + 10, r.y + 2, r.width - 20, 20), manager.Objective.Title, title);
+                    GUI.Label(new Rect(r.x + 10, r.y + 23, r.width - 20, 24), manager.Objective.Hint, small);
+                }
+                // The permanent objective card is intentionally hidden.
             }
             finally { GUI.matrix = matrix; GUI.color = color; GUI.depth = depth; }
         }
 
-        private void DrawStatus(Rect r)
+        private void DrawStatus(HUDLayout layout)
         {
-            Panel(r, Green);
-            Label(r, 16, 9, r.width - 32, 25, "НЕКРОМАНТ", title, Ink);
-            float maxHP = manager.Necromancer.MaxHealth;
-            float maxEnergy = manager.Necromancer.Energy.Maximum;
-            bool danger = Health <= maxHP * 0.3f;
-            Label(r, r.width - 144, 12, 128, 22, danger ? "КРИТИЧЕСКОЕ HP" : Health < maxHP ? "РАНЕН" : "В СТРОЮ", state, danger ? Warning : Muted);
-            Label(r, 16, 40, 100, 22, "Здоровье", text, Ink);
-            Label(r, 125, 40, r.width - 141, 22, $"{Health:0.#} / {maxHP:0} HP", right, danger ? Warning : Ink);
-            Bar(new Rect(r.x + 16, r.y + 66, r.width - 32, 10), DisplayedHealth / maxHP, danger ? Warning : Blood);
-            bool enough = !infection || Energy >= infection.InfectionCost;
-            Label(r, 16, 83, 120, 22, enough ? "Тёмная энергия" : "Мало энергии", text, enough ? Green : Warning);
-            Label(r, 140, 83, r.width - 156, 22, $"{Mathf.FloorToInt(Energy)} / {maxEnergy:0}", right, Ink);
-            Bar(new Rect(r.x + 16, r.y + 109, r.width - 32, 10), DisplayedEnergy / maxEnergy, Green);
+            ResourceVessel.Draw(layout.Status, DisplayedHealth / manager.Necromancer.MaxHealth,
+                new Color(.85f, .045f, .075f), DamagePulse);
+            ResourceVessel.Draw(layout.EnergyOrb, DisplayedEnergy / manager.Necromancer.Energy.Maximum,
+                new Color(.32f, .85f, .08f), Mathf.Max(SpendPulse, RestorePulse));
             var progression = GetComponent<SoulProgression>();
-            string progress = progression ? $"Уровень {progression.Level} · Опыт {progression.Experience}/{progression.RequiredExperience}" : "Энергия восстанавливается со временем";
-            Label(r, 16, 121, r.width - 32, 20, progress, small, Muted);
-            if (progression) Bar(new Rect(r.x + 16, r.y + 140, r.width - 32, 4), (float)progression.Experience / progression.RequiredExperience, Green);
-        }
-
-        private void DrawVillage(Rect r)
-        {
-            Panel(r, Brass);
-            Label(r, Inset, 9, r.width - 2 * Inset, 25, "ЖИТЕЛИ ДЕРЕВНИ", title, Ink);
-            float column = (r.width - 2 * Inset) / 3;
-            DrawVillageCount(r, Inset, column, "Крестьяне", feedback ? feedback.PeasantCount : 0, HUDIcons.Peasant);
-            DrawVillageCount(r, Inset + column, column, "Рыцари", feedback ? feedback.KnightCount : 0, HUDIcons.Knight);
-            DrawVillageCount(r, Inset + 2 * column, column, "Арбалетчики", feedback ? feedback.RangedCount : 0, HUDIcons.Crossbow);
-        }
-
-        private void DrawVillageCount(Rect r, float x, float width, string label, int count, Texture2D icon)
-        {
-            GUI.color = Brass;
-            GUI.DrawTexture(new Rect(r.x + x + (width - 24) / 2, r.y + 42, 24, 24), icon);
-            Label(r, x, 70, width, 22, label, columnTitle, Muted);
-            Label(r, x, 94, width, 36, count.ToString(), number, Ink);
+            Bar(layout.Experience, progression ? (float)progression.Experience / progression.RequiredExperience : 0, Brass);
         }
 
         private void DrawObjective(Rect r)
         {
-            Panel(r, Purple);
-            Label(r, 16, 8, r.width - 32, 20, manager.FinalPhase ? "ЦЕЛЬ · ФИНАЛЬНЫЙ ШТУРМ" : "ЦЕЛЬ", small, Purple);
-            Label(r, 16, 31, r.width - 32, 26, manager.FinalPhase ? "ОСКВЕРНИТЕ ФЕРМУ" : "ДОБЕРИТЕСЬ ДО ФЕРМЫ", title, Ink);
+            DrawPage(r, false, manager.FinalPhase ? Purple : Brass);
+            GUI.color = PageInk;
+            GUI.DrawTexture(new Rect(r.xMax - 38, r.y + 12, 22, 22), HUDIcons.Farm);
+            Label(r, 16, 8, r.width - 54, 20, manager.FinalPhase ? "ЦЕЛЬ · ФИНАЛЬНЫЙ ШТУРМ" : "ЦЕЛЬ", small, PageInk);
+            Label(r, 16, 31, r.width - 32, 26, manager.FinalPhase ? "ОСКВЕРНИТЕ ФЕРМУ" : "ДОБЕРИТЕСЬ ДО ФЕРМЫ", title, PageInk);
             if (manager.FinalPhase && assault)
             {
-                Label(r, 16, 61, r.width - 32, 22, $"Осквернение: {assault.CorruptionSeconds:0.0} / {assault.CorruptionDuration:0.#} сек", text, Ink);
+                Label(r, 16, 61, r.width - 32, 22, $"Осквернение: {assault.CorruptionSeconds:0.0} / {assault.CorruptionDuration:0.#} сек", text, PageInk);
                 Bar(new Rect(r.x + 16, r.y + 91, r.width - 32, 8), assault.Progress, Purple);
-                Label(r, 16, 103, r.width - 32, 20, "Защищайте некроманта у фермы", small, Muted);
+                Label(r, 16, 103, r.width - 32, 20, "Защищайте некроманта у фермы", small, PageInk);
             }
             else
             {
-                Label(r, 16, 60, r.width - 32, 38, journey ? journey.StageHint : "Заражайте жителей и берегите орду для штурма", small, Muted);
-                Label(r, 16, 102, r.width - 32, 20, journey ? $"Участок {journey.Stage + 1}/3 · {journey.DistanceTravelled:0}/{journey.Length:0} м" : "Некромант идёт самостоятельно", small, Purple);
+                Label(r, 16, 60, r.width - 32, 38, journey ? journey.StageHint : "Заражайте жителей и берегите орду для штурма", small, PageInk);
+                Label(r, 16, 102, r.width - 32, 20, journey ? $"Участок {journey.Stage + 1}/3 · {journey.DistanceTravelled:0}/{journey.Length:0} м" : "Некромант идёт самостоятельно", small, PageInk);
             }
-        }
-
-        private void DrawAbilities(Rect r)
-        {
-            Panel(r, Purple);
-            if (!infection || !protection || !protection.AreaPrefab) return;
-            float width = (r.width - 32) / 3;
-            DrawAbility(new Rect(r.x + 8, r.y + 7, width, 66), HUDIcons.Infection,
-                "Заражение", "ЛКМ", infection.InfectionCost, Green, "Цель: житель");
-            DrawAbility(new Rect(r.x + 16 + width, r.y + 7, width, 66), HUDIcons.Protection,
-                "Защита", "ПКМ", protection.EnergyCost, Purple, "Цель: земля");
-            DrawAbility(new Rect(r.x + 24 + 2 * width, r.y + 7, width, 66), HUDIcons.Raise,
-                "Поднятие", "ЛКМ", infection.RaiseGuardCost, Brass, "Тело / могила");
-        }
-
-        private void DrawAbility(Rect tile, Texture2D icon, string name, string input, float cost, Color accent, string target)
-        {
-            bool aiming = preview && preview.Caption != null && preview.Icon == icon;
-            if (aiming) cost = preview.Cost;
-            bool funded = manager.Necromancer.Energy.CanSpend(cost);
-            bool unavailable = !funded || (aiming && !preview.IsAvailable);
-            bool hovered = tile.Contains(Event.current.mousePosition);
-            Panel(tile, unavailable ? Warning : hovered || aiming ? accent : Iron);
-            GUI.color = unavailable ? Muted : accent;
-            GUI.DrawTexture(new Rect(tile.center.x - 10, tile.y + 4, 20, 20), icon);
-            Label(tile, 4, 22, tile.width - 8, 16, name, abilityTitle, unavailable ? Muted : Ink);
-            Label(tile, 4, 37, tile.width - 8, 14, $"{input} · {cost:0.##} эн.", abilityDetail, Muted);
-            string detail = !funded ? "Мало энергии" : aiming && !preview.IsAvailable ? "Цель недоступна"
-                : aiming ? "Готово к применению" : hovered ? target : string.Empty;
-            Label(tile, 4, 50, tile.width - 8, 14, detail, abilityDetail, unavailable ? Warning : Ink);
         }
 
         private static void Label(Rect r, float x, float y, float width, float height, string value, GUIStyle style, Color color)

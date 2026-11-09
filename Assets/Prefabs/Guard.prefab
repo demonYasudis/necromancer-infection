@@ -195,6 +195,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NecromancerInfection.CharacterSpriteVisual
   Image: {fileID: 4051998570514365857}
+  rear: {fileID: 21300000, guid: c812dc94756c9824089231accc2901f6, type: 3}
 --- !u!1 &604233507884373360
 GameObject:
   m_ObjectHideFlags: 0
@@ -423,6 +424,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NecromancerInfection.GuardRemains
   corpsePrefab: {fileID: 6374925274518791895, guid: 3d78d925e83c1554e997db6e04ac7888, type: 3}
+  raisedGuardPrefab: {fileID: 0}
 --- !u!1 &1574470881715399462
 GameObject:
   m_ObjectHideFlags: 0

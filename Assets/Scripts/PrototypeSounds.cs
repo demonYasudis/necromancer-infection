@@ -41,6 +41,35 @@ namespace NecromancerInfection
             (0.5f * Sin(55 * t) + 0.28f * Sin(82 * t) + 0.15f * Sin(110 * t))
                 * (0.8f + 0.2f * Sin(0.5f * t)), false);
 
+        public static AudioClip CreateSoundtrack()
+        {
+            const float phrase = 8;
+            const float duration = phrase * 4;
+            // D minor, B-flat, G minor, A. Keep oscillator phases continuous at the loop point.
+            float[] bass = { 73.42f, 58.27f, 49f, 55f };
+            float[] upper = { 174.61f, 146.83f, 116.54f, 138.59f };
+            for (int i = 0; i < bass.Length; i++)
+            {
+                bass[i] = Mathf.Round(bass[i] * duration) / duration;
+                upper[i] = Mathf.Round(upper[i] * duration) / duration;
+            }
+            return Generate("Dusk on the Road", duration, t =>
+            {
+                int chord = (int)(t / phrase);
+                int previous = (chord + 3) % bass.Length;
+                float local = t % phrase;
+                float blend = Mathf.SmoothStep(0, 1, local / 2.5f);
+                float pad = Mathf.Lerp(Pad(t, bass[previous], upper[previous]), Pad(t, bass[chord], upper[chord]), blend);
+                float toll = Mathf.Min(1, local * 3) * Mathf.Exp(-local * 1.5f);
+                return pad * (.82f + .18f * Sin(t / phrase))
+                    + toll * (.023f * Sin(2 * upper[chord] * local) + .009f * Sin(4 * upper[chord] * local));
+            }, false);
+        }
+
+        private static float Pad(float time, float bass, float upper) =>
+            .065f * Sin(bass * time) + .025f * Sin(2 * bass * time)
+            + .019f * Sin(upper * time) + .011f * Sin((upper + .25f) * time);
+
         private static float Sin(float cycles) => Mathf.Sin(2 * Mathf.PI * cycles);
 
         private static AudioClip Generate(string name, float duration, Func<float, float> sample, bool fade)

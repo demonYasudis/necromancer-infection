@@ -26,7 +26,18 @@ namespace NecromancerInfection
         private void OnEnable()
         {
             previous = transform.position;
-            if (combat) combat.HitReceived += OnHit;
+            if (combat)
+            {
+                combat.HitReceived += OnHit;
+                combat.Died += OnDeath;
+            }
+        }
+
+        private void OnDeath(UnitCombat attacker)
+        {
+            enabled = false;
+            rig.Paused = true;
+            SpriteFall.Begin(transform);
         }
 
         private void OnHit(Vector3 direction)
@@ -57,7 +68,11 @@ namespace NecromancerInfection
 
         private void OnDisable()
         {
-            if (combat) combat.HitReceived -= OnHit;
+            if (combat)
+            {
+                combat.HitReceived -= OnHit;
+                combat.Died -= OnDeath;
+            }
             if (!rig) return;
             rig.InfectionBend = 0;
             rig.RecoilOffset = Vector2.zero;

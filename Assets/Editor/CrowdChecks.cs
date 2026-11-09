@@ -20,7 +20,6 @@ namespace NecromancerInfection.Editor
             CrossbowChecks.DisableSceneArchers();
             var leader = manager.Necromancer;
             leader.enabled = false;
-            leader.transform.position = new Vector3(-6, 0, -6);
             foreach (var guard in Object.FindObjectsByType<Guard>(FindObjectsSortMode.None)) guard.gameObject.SetActive(false);
             foreach (var human in Object.FindObjectsByType<Civilian>(FindObjectsSortMode.None)) human.gameObject.SetActive(false);
             // Isolate the crowd fixture from the village buildings, retaining the real ground.
@@ -31,27 +30,47 @@ namespace NecromancerInfection.Editor
                     if (body.TryGetComponent<Renderer>(out var visual)) visual.enabled = false;
                 }
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(InfectionSetup.PrefabPath).GetComponent<Zombie>();
-            var horde = new Zombie[30];
-            for (int i = 0; i < horde.Length; i++)
+            var waypoint = new GameObject("CrowdCheckDestination").transform;
+            var corner = new GameObject("CrowdCheckCorner").transform;
+            Vector3 start = new Vector3(-9, 0, -3);
+            foreach (int size in new[] { 5, 20, 50 })
             {
-                horde[i] = Object.Instantiate(prefab, leader.transform.position, Quaternion.identity);
-                horde[i].Initialize(leader);
+                leader.enabled = false;
+                waypoint.position = start + Vector3.right * 3;
+                leader.BeginRoute(start, new[] { waypoint });
+                var group = Spawn(prefab, leader, size);
+                yield return 5f;
+                RequireFront(group, leader, Vector3.right, 1f);
+                var settled = new Vector3[size];
+                for (int i = 0; i < size; i++) settled[i] = group[i].transform.position;
+                yield return .5f;
+                for (int i = 0; i < size; i++)
+                    Require(Vector3.Distance(settled[i], group[i].transform.position) < .04f,
+                        $"{size} zombies must settle without oscillating around their places.");
+                leader.enabled = true;
+                yield return 1f;
+                Require(!leader.HasArrived, "Check the front while the leader is moving.");
+                RequireFront(group, leader, Vector3.right, .8f);
+                if (size == 50)
+                {
+                    corner.position = waypoint.position + Vector3.forward * 4;
+                    leader.BeginRoute(leader.transform.position, new[] { waypoint, corner });
+                    yield return 5f;
+                    Require(leader.HasArrived, "The leader must complete the right-angle route.");
+                    RequireFront(group, leader, Vector3.forward, 1f);
+                    Capture(manager.LevelCamera, leader.transform.position + Vector3.forward * 3, "crowd-following.png");
+                }
+                foreach (var zombie in group) Object.Destroy(zombie.gameObject);
+                yield return .1f;
             }
+            Debug.Log("PASS: 5, 20 and 50 overlapping spawns form a stable moving front; 50 reform after a right-angle turn.");
+
+            leader.enabled = false;
+            start = new Vector3(-11, 0, -6);
+            waypoint.position = new Vector3(7, 0, -6);
+            leader.BeginRoute(start, new[] { waypoint });
+            var horde = Spawn(prefab, leader, 30);
             yield return 4f;
-            float gap = MinimumGap(horde);
-            double settleDeadline = EditorApplication.timeSinceStartup + 4;
-            while (gap < 0.6f && EditorApplication.timeSinceStartup < settleDeadline)
-            {
-                yield return 0.1f;
-                gap = MinimumGap(horde);
-            }
-            Require(gap > 0.48f, $"Thirty exact-overlap spawns must spread into distinguishable bodies; minimum gap {gap:F3}.");
-            foreach (var zombie in horde)
-                Require(zombie.State == Zombie.BehaviourState.Following
-                    && Vector3.Distance(zombie.transform.position, leader.transform.position) < 4,
-                    "Thirty followers must settle around their leader within the horde boundary.");
-            Debug.Log($"PASS: 30 overlapping spawns spread around the leader; minimum center gap {gap:F3}.");
-            Capture(manager.LevelCamera, leader.transform.position, "crowd-following.png");
 
             var positions = new Vector3[horde.Length];
             for (int i = 0; i < horde.Length; i++) positions[i] = horde[i].transform.position;
@@ -71,9 +90,6 @@ namespace NecromancerInfection.Editor
                 walls[i].transform.localScale = new Vector3(6, 1.6f, 1);
             }
             Physics.SyncTransforms();
-            var waypoint = new GameObject("CrowdCheckDestination").transform;
-            waypoint.position = new Vector3(6, 0, -6);
-            leader.BeginRoute(leader.transform.position, new[] { waypoint });
             leader.enabled = true;
             double timeout = EditorApplication.timeSinceStartup + 15;
             while (EditorApplication.timeSinceStartup < timeout)
@@ -95,15 +111,20 @@ namespace NecromancerInfection.Editor
                 yield return 0.1f;
             }
             int through = 0;
-            foreach (var zombie in horde) if (zombie.transform.position.x > 3.3f) through++;
-            Require(leader.HasArrived && through == 30, $"The whole horde must pass the narrow opening; passed {through}/30.");
-            yield return 2f;
-            gap = MinimumGap(horde);
-            Require(gap > 0.45f, $"Formation must spread again after the passage; minimum gap {gap:F3}.");
+            var behind = new List<Vector3>();
+            foreach (var zombie in horde)
+                if (zombie.transform.position.x > 3.3f) through++;
+                else behind.Add(zombie.transform.position);
+            Require(leader.HasArrived && through == 30,
+                $"The whole horde must pass the narrow opening; passed {through}/30. Behind: {string.Join(", ", behind)}.");
+            yield return 3.5f;
+            RequireFront(horde, leader, Vector3.right, .9f);
+            float gap = MinimumGap(horde);
             Debug.Log($"PASS: 30 zombies follow an autonomous leader through a 2.2-unit passage without crossing walls or the leash; final gap {gap:F3}.");
             foreach (var wall in walls) Object.Destroy(wall);
             foreach (var zombie in horde) Object.Destroy(zombie.gameObject);
             Object.Destroy(waypoint.gameObject);
+            Object.Destroy(corner.gameObject);
             yield return 0.1f;
 
             leader.enabled = false;
@@ -161,12 +182,64 @@ namespace NecromancerInfection.Editor
                     "After a target dies, all ranks must release their reservations and return to the leader.");
             Debug.Log("PASS: attack positions surround a real guard, melee range/cooldowns still apply, waiting ranks advance after death and return after combat.");
 
-            SceneManager.LoadSceneAsync(DemoLevelSetup.ScenePath);
+            var chainChecks = InfectionHordeChecks.ChainInfectionChecks(leader, prefab);
+            while (chainChecks.MoveNext()) yield return chainChecks.Current;
+
+            SceneManager.LoadSceneAsync(JourneySetup.ScenePath);
             yield return 0.5f;
             manager = Object.FindFirstObjectByType<GameManager>();
             Require(manager && !manager.IsFinished && Object.FindObjectsByType<Zombie>(FindObjectsSortMode.None).Length == 0,
                 "Reload must remove all old horde members and slot reservations.");
-            Debug.Log("PASS: crowd pause and clean scene reload.");
+            foreach (var target in Object.FindObjectsByType<LivingTarget>(FindObjectsSortMode.None))
+                target.gameObject.SetActive(false);
+            leader = manager.Necromancer;
+            Transform arrival = manager.Farm.ArrivalPoint;
+            leader.transform.rotation = Quaternion.identity;
+            leader.BeginRoute(arrival.position, new[] { arrival });
+            horde = Spawn(prefab, leader, 5);
+            Require(manager.Farm.TryBeginFinalPhase(leader), "Start the real farm assault.");
+            yield return 2.65f;
+            Vector3 cameraForward = Vector3.ProjectOnPlane(manager.LevelCamera.transform.forward, Vector3.up).normalized;
+            Require(Vector3.Dot(cameraForward, Vector3.back) > .98f, "The finale camera looks toward the road.");
+            RequireFront(horde, leader, cameraForward, .85f);
+            leader.Combat.TakeDamage(10000);
+            Require(manager.TryRestartLevel(), "Retry the level after the finale.");
+            yield return .6f;
+            manager = Object.FindFirstObjectByType<GameManager>();
+            Require(manager && !manager.FinalPhase && Object.FindObjectsByType<Zombie>(FindObjectsSortMode.None).Length == 0,
+                "Retry must reset the encounter and formation.");
+            Debug.Log("PASS: the horde turns with the camera for the farm assault; pause and retry reset verified.");
+        }
+
+        private static Zombie[] Spawn(Zombie prefab, Necromancer leader, int count)
+        {
+            var units = new Zombie[count];
+            for (int i = 0; i < units.Length; i++)
+            {
+                units[i] = Object.Instantiate(prefab, leader.transform.position, Quaternion.identity);
+                units[i].Initialize(leader);
+            }
+            return units;
+        }
+
+        private static void RequireFront(Zombie[] units, Necromancer leader, Vector3 forward, float minimumLead)
+        {
+            float minSide = float.PositiveInfinity, maxSide = float.NegativeInfinity;
+            Vector3 right = Vector3.Cross(Vector3.up, forward);
+            foreach (var unit in units)
+            {
+                Vector3 offset = unit.transform.position - leader.transform.position;
+                float lead = Vector3.Dot(offset, forward);
+                Require(lead >= minimumLead && offset.magnitude < unit.MaxHordeDistance,
+                    $"{units.Length} zombies must hold the front inside the leash; lead {lead:F2}, offset {offset}.");
+                float side = Vector3.Dot(offset, right);
+                minSide = Mathf.Min(minSide, side);
+                maxSide = Mathf.Max(maxSide, side);
+            }
+            float gap = MinimumGap(units);
+            Require(gap > .48f, $"{units.Length} zombies must separate; closest pair {gap:F3}.");
+            Require(maxSide - minSide > (units.Length >= 20 ? 5 : 2.4f),
+                $"{units.Length} zombies must spread into a broad front; width {maxSide - minSide:F2}.");
         }
 
         private static float MinimumGap(Zombie[] horde)
