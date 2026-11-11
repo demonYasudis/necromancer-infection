@@ -30,7 +30,7 @@ namespace NecromancerInfection
         }
         private void Start()
         {
-            movementArea = JourneyRoute.MovementArea(this, movementArea);
+            movementArea = GameManager.MovementArea(this, movementArea);
             home = transform.position;
         }
 

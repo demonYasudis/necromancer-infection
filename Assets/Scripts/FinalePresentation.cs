@@ -93,7 +93,7 @@ namespace NecromancerInfection
 
         private void LateUpdate()
         {
-            if (!effects || !assault) return;
+            if (!manager) return;
             if (manager.IsFinished && endedAt < 0)
             {
                 endedAt = Time.unscaledTime;

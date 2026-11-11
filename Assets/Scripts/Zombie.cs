@@ -66,7 +66,7 @@ namespace NecromancerInfection
 
         public void Initialize(Necromancer leader)
         {
-            movementArea = JourneyRoute.MovementArea(this, movementArea);
+            movementArea = GameManager.MovementArea(this, movementArea);
             if (Leader != leader)
             {
                 if (Leader) Leader.Horde.Leave(this);

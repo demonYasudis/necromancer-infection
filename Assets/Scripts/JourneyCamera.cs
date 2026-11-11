@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace NecromancerInfection
 {
-    /// <summary>A close travelling view, shared by the short and extended routes.</summary>
+    /// <summary>A close travelling view, shared by the routes and survival arena.</summary>
     [DefaultExecutionOrder(50)]
     public sealed class JourneyCamera : MonoBehaviour
     {

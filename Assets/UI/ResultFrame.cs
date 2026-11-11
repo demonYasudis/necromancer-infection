@@ -28,13 +28,13 @@ namespace NecromancerInfection
             normal = { textColor = color }
         };
 
-        internal static void Emblem(Rect panel, bool victory, float age)
+        internal static void Emblem(Rect panel, bool victory, float age, Texture2D victoryIcon = null)
         {
             float x = panel.center.x, y = panel.y + 46;
             InterfaceTheme.Fill(new Rect(x - 36, y - 30, 72, 64), InterfaceTheme.Shadow);
             if (victory)
             {
-                // Three tongues of ritual fire rise from the captured farm.
+                // Three tongues of ritual fire mark a victory.
                 float glow = 1 + .15f * Mathf.Sin(Mathf.Clamp01(age / .9f) * Mathf.PI);
                 for (int i = -1; i <= 1; i++)
                 {
@@ -42,7 +42,7 @@ namespace NecromancerInfection
                     InterfaceTheme.Fill(new Rect(x + i * 16 - 3, y - 27, 6, h), InterfaceTheme.Green * glow);
                 }
                 GUI.color = InterfaceTheme.Green;
-                GUI.DrawTexture(new Rect(x - 25, y - 7, 50, 36), HUDIcons.Farm);
+                GUI.DrawTexture(new Rect(x - 25, y - 7, 50, 36), victoryIcon ? victoryIcon : HUDIcons.Farm);
             }
             else
             {

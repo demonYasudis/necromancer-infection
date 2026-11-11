@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace NecromancerInfection
 {
-    /// <summary>Per-scene tutorial progression and the timed objective for future survival maps.</summary>
+    /// <summary>Per-scene tutorial progression and the timed survival objective.</summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(GameManager))]
     public sealed class LevelObjective : MonoBehaviour

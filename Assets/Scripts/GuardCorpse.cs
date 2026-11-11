@@ -10,6 +10,16 @@ namespace NecromancerInfection
         public Zombie RaisedGuardPrefab => raisedGuardPrefab;
         public bool IsConsumed { get; private set; }
 
+        private void Start()
+        {
+            foreach (var waves in FindObjectsByType<SurvivalWaves>(FindObjectsSortMode.None))
+            {
+                if (waves.gameObject.scene != gameObject.scene) continue;
+                Destroy(gameObject, waves.CorpseLifetime);
+                break;
+            }
+        }
+
         public string UnavailableReason(Necromancer leader)
         {
             if (IsConsumed) return "Тело уже поднято";

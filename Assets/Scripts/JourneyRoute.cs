@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace NecromancerInfection
 {
-    /// <summary>Presentation and movement bounds for the extended, authored demo.</summary>
+    /// <summary>Progress and presentation for the extended route.</summary>
     [DisallowMultipleComponent]
     public sealed class JourneyRoute : MonoBehaviour
     {
@@ -44,16 +44,6 @@ namespace NecromancerInfection
                 if (squared < nearest) { nearest = squared; DistanceTravelled = travelled + distance * t; }
                 travelled += distance;
             }
-        }
-
-        public static Rect MovementArea(Component unit, Rect fallback)
-        {
-            var journey = FindFirstObjectByType<JourneyRoute>();
-            if (!journey || journey.gameObject.scene != unit.gameObject.scene) return fallback;
-            var game = journey.GetComponent<GameManager>();
-            if (!game || !game.Ground) return fallback;
-            Bounds bounds = game.Ground.bounds;
-            return Rect.MinMaxRect(bounds.min.x + 1, bounds.min.z + 1, bounds.max.x - 1, bounds.max.z - 1);
         }
     }
 }

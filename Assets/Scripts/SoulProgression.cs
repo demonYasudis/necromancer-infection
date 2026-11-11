@@ -11,6 +11,7 @@ namespace NecromancerInfection
         public enum Upgrade { EnergyCapacity, Regeneration, InfectionCost, ProtectionCost }
         private const int CapacityBonus = 20;
         private const float RegenerationBonus = .5f;
+        [SerializeField, Min(0)] private int defenderExperience = 3;
         private GameManager manager;
         private readonly List<Upgrade> offers = new List<Upgrade>();
         private readonly int[] ranks = new int[4];
@@ -38,7 +39,7 @@ namespace NecromancerInfection
         private void OnDied(UnitCombat victim)
         {
             if (victim.gameObject.scene == gameObject.scene && (victim.GetComponent<Guard>() || victim.GetComponent<Crossbowman>()))
-                AddExperience(3);
+                AddExperience(defenderExperience);
         }
         public void AddExperience(int amount)
         {

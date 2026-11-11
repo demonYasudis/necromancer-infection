@@ -28,6 +28,7 @@ namespace NecromancerInfection
         private GameManager manager;
         private AlarmBell bell;
         private FarmAssault assault;
+        private SurvivalWaves survival;
         private bool raised, prevented, started;
         private int arrived;
         private Notice current;
@@ -47,6 +48,7 @@ namespace NecromancerInfection
             bell = FindFirstObjectByType<AlarmBell>();
             if (bell && bell.gameObject.scene != gameObject.scene) bell = null;
             assault = manager && manager.Farm ? manager.Farm.GetComponent<FarmAssault>() : null;
+            survival = GetComponent<SurvivalWaves>();
             // Re-enabling recovers live warnings without replaying historical events.
             raised = bell && bell.IsRaised; prevented = bell && bell.IsPrevented;
             started = assault && assault.HasStarted; arrived = assault ? assault.WavesSpawned : 0;
@@ -54,7 +56,7 @@ namespace NecromancerInfection
 
         private void OnDisable() { notices.Clear(); indicators.Clear(); current = null; }
 
-        private void Put(string key, string text, int priority, bool persistent, int occurrences = 0)
+        private Notice Put(string key, string text, int priority, bool persistent, int occurrences = 0)
         {
             var notice = notices.Find(item => item.Key == key);
             if (notice == null)
@@ -65,6 +67,7 @@ namespace NecromancerInfection
             notice.Text = text; notice.Priority = priority; notice.Persistent = persistent;
             if (occurrences > 0) { notice.Count += occurrences; notice.Remaining = 4; }
             else notice.Count = 1;
+            return notice;
         }
 
         private void Remove(string key) => notices.RemoveAll(item => item.Key == key);
@@ -93,6 +96,9 @@ namespace NecromancerInfection
                 Put("wave", $"ВОЛНА {assault.WavesSpawned + 1}/{assault.WaveCount} · {assault.NextWaveDirection} · {assault.NextWaveSize} бойца · {assault.NextWaveSeconds:0.0} с",
                     assault.NextWaveSeconds <= 3 ? 90 : 50, true);
             else Remove("wave");
+            if (survival && survival.HasWarning)
+                Put("survival-wave", survival.WarningText, 90, true).Remaining = 4;
+            else Remove("survival-wave");
             started = assault && assault.HasStarted; arrived = assault ? assault.WavesSpawned : 0;
             current = null;
             foreach (var notice in notices)
@@ -136,6 +142,12 @@ namespace NecromancerInfection
             {
                 if (assault.HasPendingWave) AddIndicator(camera, assault.NextWavePosition, "Новая волна", HUDIcons.Swords, layout, result);
                 AddGroup(camera, assault.Reinforcements, "Стража фермы", HUDIcons.Farm, layout, result);
+            }
+            if (survival && survival.isActiveAndEnabled)
+            {
+                if (survival.HasWarning)
+                    AddIndicator(camera, survival.WarningPosition, "Новая волна", HUDIcons.Swords, layout, result);
+                AddGroup(camera, survival.Reinforcements, "Враги арены", HUDIcons.Swords, layout, result);
             }
         }
 

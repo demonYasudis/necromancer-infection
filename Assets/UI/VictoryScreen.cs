@@ -35,7 +35,7 @@ namespace NecromancerInfection
                 InterfaceTheme.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(.42f, 1, .2f,
                     Mathf.Sin(Mathf.Clamp01(age / .45f) * Mathf.PI) * .18f));
                 Rect panel = ResultFrame.Begin(492, InterfaceTheme.Green);
-                ResultFrame.Emblem(panel, true, age);
+                ResultFrame.Emblem(panel, true, age, manager.IsSurvival ? HUDIcons.Swords : HUDIcons.Farm);
                 GUI.Label(new Rect(panel.x + 16, panel.y + 82, panel.width - 32, 64), manager.Objective
                     ? manager.Objective.Mode == LevelObjective.ObjectiveMode.Survival ? "ВЫ ВЫЖИЛИ"
                     : manager.Objective.TutorialLevel == 4 ? "ОБУЧЕНИЕ ПРОЙДЕНО" : "УРОВЕНЬ ПРОЙДЕН"

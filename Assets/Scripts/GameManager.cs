@@ -3,7 +3,7 @@ using UnityEngine.SceneManagement;
 
 namespace NecromancerInfection
 {
-    /// <summary>Scene references and the autonomous route for the demo.</summary>
+    /// <summary>Scene references, attempt state and autonomous movement setup.</summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(DefeatScreen))]
     [RequireComponent(typeof(VictoryScreen))]
@@ -19,6 +19,7 @@ namespace NecromancerInfection
         [SerializeField] private string menuScenePath;
         [SerializeField] private string nextScenePath;
         public LevelObjective Objective => GetComponent<LevelObjective>();
+        internal bool IsSurvival => Objective && Objective.Mode == LevelObjective.ObjectiveMode.Survival;
         public bool CanAdvance => IsVictorious && !string.IsNullOrEmpty(nextScenePath)
             && Application.CanStreamedLevelBeLoaded(nextScenePath);
 
@@ -66,14 +67,15 @@ namespace NecromancerInfection
             if (!GetComponent<GameNotifications>()) gameObject.AddComponent<GameNotifications>();
             if (!GetComponent<FinalePresentation>()) gameObject.AddComponent<FinalePresentation>();
             if (!GetComponent<SoulProgression>()) gameObject.AddComponent<SoulProgression>();
-            if (!GetComponent<OnboardingGuide>()) gameObject.AddComponent<OnboardingGuide>();
+            if (!IsSurvival && !GetComponent<OnboardingGuide>()) gameObject.AddComponent<OnboardingGuide>();
             if (!GetComponent<ProgressionScreen>()) gameObject.AddComponent<ProgressionScreen>();
             if (!GetComponent<JourneyCamera>()) gameObject.AddComponent<JourneyCamera>();
             if (!GetComponent<PauseMenu>()) gameObject.AddComponent<PauseMenu>();
-            if (levelCamera == null || ground == null || startPoint == null || captureTarget == null || necromancer == null
-                || System.Array.Exists(intermediateWaypoints, point => point == null))
+            if (!levelCamera || !ground || !startPoint || !necromancer
+                || (IsSurvival ? intermediateWaypoints.Length < 2 : !captureTarget)
+                || System.Array.Exists(intermediateWaypoints, point => !point))
             {
-                Debug.LogError("DemoLevel is missing required scene references on GameManager.", this);
+                Debug.LogError("The level is missing required scene references on GameManager.", this);
                 enabled = false;
             }
         }
@@ -189,6 +191,12 @@ namespace NecromancerInfection
 
         private void Start()
         {
+            if (IsSurvival)
+            {
+                necromancer.BeginRoute(startPoint.position, intermediateWaypoints, repeat: true);
+                return;
+            }
+
             var route = new Transform[intermediateWaypoints.Length + 1];
             intermediateWaypoints.CopyTo(route, 0);
             route[route.Length - 1] = Farm ? Farm.ArrivalPoint : captureTarget;
@@ -198,6 +206,23 @@ namespace NecromancerInfection
         private void Update()
         {
             if (!IsFinished && !IsRestarting && Farm) Farm.TryBeginFinalPhase(necromancer);
+        }
+
+        private Rect GroundMovementArea
+        {
+            get
+            {
+                Bounds bounds = ground.bounds;
+                return Rect.MinMaxRect(bounds.min.x + 1, bounds.min.z + 1, bounds.max.x - 1, bounds.max.z - 1);
+            }
+        }
+
+        internal static Rect MovementArea(Component unit, Rect fallback)
+        {
+            var game = FindFirstObjectByType<GameManager>();
+            if (!game || game.gameObject.scene != unit.gameObject.scene || !game.ground
+                || (!game.IsSurvival && !game.GetComponent<JourneyRoute>())) return fallback;
+            return game.GroundMovementArea;
         }
     }
 }

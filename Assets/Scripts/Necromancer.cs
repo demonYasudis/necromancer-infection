@@ -13,6 +13,7 @@ namespace NecromancerInfection
 
         private Transform[] route = Array.Empty<Transform>();
         private int nextWaypoint;
+        private bool repeatRoute;
         private HordeFormation horde;
         internal HordeFormation Horde => horde ??= new HordeFormation(this);
 
@@ -37,11 +38,15 @@ namespace NecromancerInfection
         }
 
         public void BeginRoute(Vector3 startPosition, Transform[] waypoints)
+            => BeginRoute(startPosition, waypoints, false);
+
+        internal void BeginRoute(Vector3 startPosition, Transform[] waypoints, bool repeat)
         {
             if (waypoints == null || waypoints.Length == 0 || Array.Exists(waypoints, point => point == null))
                 throw new ArgumentException("The necromancer requires a non-empty route without missing waypoints.", nameof(waypoints));
 
             route = (Transform[])waypoints.Clone();
+            repeatRoute = repeat;
             nextWaypoint = 0;
             transform.position = startPosition;
         }
@@ -51,7 +56,7 @@ namespace NecromancerInfection
             if (!Combat.IsAlive) return;
             float remainingDistance = moveSpeed * Time.deltaTime;
             // Consume the frame's distance across corners, including on slow frames.
-            while (nextWaypoint < route.Length)
+            for (int visited = 0; visited < route.Length && nextWaypoint < route.Length; visited++)
             {
                 if (route[nextWaypoint] == null)
                 {
@@ -76,6 +81,7 @@ namespace NecromancerInfection
                 transform.position = target;
                 remainingDistance -= distance;
                 nextWaypoint++;
+                if (repeatRoute && nextWaypoint == route.Length) nextWaypoint = 0;
             }
         }
 
