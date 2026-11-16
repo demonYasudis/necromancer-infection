@@ -43,7 +43,7 @@ namespace NecromancerInfection.Editor
             assault.enabled = false;
             if (assault.ClosedGate) assault.ClosedGate.SetActive(false);
             var settings = new SerializedObject(game);
-            settings.FindProperty("nextScenePath").stringValue = level < 4 ? ScenePath(level + 1) : "";
+            settings.FindProperty("nextScenePath").stringValue = level < 4 ? ScenePath(level + 1) : MainMenu.SurvivalLevelPath;
             settings.ApplyModifiedPropertiesWithoutUndo();
             var objective = game.gameObject.AddComponent<LevelObjective>();
             var knight = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/JourneyFinalGuard.prefab").GetComponent<Guard>();

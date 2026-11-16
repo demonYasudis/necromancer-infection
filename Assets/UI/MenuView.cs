@@ -6,7 +6,7 @@ namespace NecromancerInfection
     /// <summary>The main and pause menus share the same settings panel and styling.</summary>
     internal sealed class MenuView
     {
-        private bool settingsOpen;
+        private bool settingsOpen, levelsOpen;
         private GUIStyle title, caption, label, value, button, primary, thumb;
 
         internal bool CloseSettings()
@@ -15,6 +15,11 @@ namespace NecromancerInfection
             settingsOpen = false;
             GameSettings.Save();
             return true;
+        }
+
+        internal void GoBack()
+        {
+            if (!CloseSettings()) levelsOpen = false;
         }
 
         internal void Draw(Texture2D backdrop, MainMenu home, GameManager game)
@@ -37,9 +42,14 @@ namespace NecromancerInfection
                     var panel = ResultFrame.Begin(358, Purple, 442);
                     DrawSettings(panel);
                 }
+                else if (home && levelsOpen)
+                {
+                    var panel = ResultFrame.Begin(424, Green, 414, leftAligned: true);
+                    DrawLevels(panel, home);
+                }
                 else if (home)
                 {
-                    var panel = ResultFrame.Begin(404, Green, 414, leftAligned: true);
+                    var panel = ResultFrame.Begin(438, Green, 414, leftAligned: true);
                     DrawHome(panel, home);
                 }
                 else
@@ -78,11 +88,25 @@ namespace NecromancerInfection
             HUDIcons.Draw(new Rect(seal.x + 9, seal.y + 9, 34, 34), HUDIcons.SoulVessel, Green);
             GUI.color = Color.white;
             GUI.Label(Row(panel, 88, 81), "NECROMANCER\nINFECTION", title);
-            GUI.Label(Row(panel, 173, 26), "ОБУЧЕНИЕ · 4 УРОВНЯ", caption);
             GUI.enabled = !home.IsLoading;
-            if (ActionButton(panel, 222, home.IsLoading ? "Загрузка…" : "Играть", true)) home.TryStartGame();
-            if (ActionButton(panel, 276, "Настройки")) settingsOpen = true;
-            if (ActionButton(panel, 330, "Выход")) home.Quit();
+            if (ActionButton(panel, 190, home.IsLoading ? "Загрузка…" : "Играть", true)) home.TryStartGame();
+            if (ActionButton(panel, 244, "Выбор уровня")) levelsOpen = true;
+            if (ActionButton(panel, 298, "Настройки")) settingsOpen = true;
+            if (ActionButton(panel, 352, "Выход")) home.Quit();
+        }
+
+        private void DrawLevels(Rect panel, MainMenu home)
+        {
+            GUI.Label(Row(panel, 22, 43), home.IsLoading ? "ЗАГРУЗКА…" : "ВЫБОР УРОВНЯ", title);
+            for (int i = 0; i < MainMenu.LevelCount; i++)
+            {
+                bool survival = i == MainMenu.LevelCount - 1;
+                GUI.enabled = home.CanStartLevel(i);
+                if (ActionButton(panel, 83 + i * 52, survival ? "Выживание · 15 минут" : $"Обучение {i + 1}"))
+                    home.TryStartLevel(i);
+            }
+            GUI.enabled = !home.IsLoading;
+            if (ActionButton(panel, 351, "Назад")) GoBack();
         }
 
         private void DrawPause(Rect panel, GameManager game)

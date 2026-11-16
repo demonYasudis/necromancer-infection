@@ -4475,7 +4475,7 @@ MonoBehaviour:
   - {fileID: 1542165810}
   - {fileID: 1108141801}
   menuScenePath: 
-  nextScenePath: 
+  nextScenePath: Assets/Scenes/Survival01.unity
 --- !u!4 &446607873
 Transform:
   m_ObjectHideFlags: 0

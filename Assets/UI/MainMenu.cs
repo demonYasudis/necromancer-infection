@@ -8,6 +8,17 @@ namespace NecromancerInfection
     {
         public const string ScenePath = "Assets/Scenes/MainMenu.unity";
         public const string FirstLevelPath = "Assets/Scenes/Tutorial1.unity";
+        public const string SurvivalLevelPath = "Assets/Scenes/Survival01.unity";
+
+        private static readonly string[] LevelPaths =
+        {
+            FirstLevelPath,
+            "Assets/Scenes/Tutorial2.unity",
+            "Assets/Scenes/Tutorial3.unity",
+            "Assets/Scenes/Tutorial4.unity",
+            SurvivalLevelPath
+        };
+        internal static int LevelCount => LevelPaths.Length;
 
         [SerializeField] private Texture2D backdrop;
         private readonly MenuView view = new MenuView();
@@ -17,17 +28,22 @@ namespace NecromancerInfection
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Escape)) view.CloseSettings();
+            if (!IsLoading && Input.GetKeyDown(KeyCode.Escape)) view.GoBack();
         }
 
         private void OnGUI() => view.Draw(backdrop, this, null);
 
-        public bool TryStartGame()
+        public bool TryStartGame() => TryStartLevel(0);
+
+        internal bool CanStartLevel(int index) => !IsLoading && index >= 0 && index < LevelPaths.Length
+            && Application.CanStreamedLevelBeLoaded(LevelPaths[index]);
+
+        public bool TryStartLevel(int index)
         {
-            if (IsLoading || !Application.CanStreamedLevelBeLoaded(FirstLevelPath)) return false;
+            if (!CanStartLevel(index)) return false;
             view.CloseSettings();
             IsLoading = true;
-            SceneManager.LoadSceneAsync(FirstLevelPath, LoadSceneMode.Single);
+            SceneManager.LoadSceneAsync(LevelPaths[index], LoadSceneMode.Single);
             return true;
         }
 

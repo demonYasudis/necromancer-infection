@@ -55,7 +55,9 @@ namespace NecromancerInfection
                 InterfaceTheme.Panel(new Rect(panel.x + 19, panel.y + 351, panel.width - 38, 56), InterfaceTheme.Green);
                 GUI.color = Color.white;
                 if (InterfaceTheme.DrawButton(new Rect(panel.x + 24, panel.y + 356, panel.width - 48, 46),
-                    manager.IsRestarting ? "Загрузка…" : manager.CanAdvance ? "Следующий уровень" : "Повторить", button))
+                    manager.IsRestarting ? "Загрузка…" : manager.CanAdvance
+                        ? (manager.Objective && manager.Objective.TutorialLevel == 4 ? "К выживанию" : "Следующий уровень")
+                        : "Повторить", button))
                 { if (manager.CanAdvance) manager.TryAdvanceLevel(); else manager.TryRestartLevel(); }
                 GUI.enabled = !manager.IsRestarting && (manager.CanAdvance || manager.CanReturnToMenu);
                 if (InterfaceTheme.DrawButton(new Rect(panel.x + 24, panel.y + 414, panel.width - 48, 32),

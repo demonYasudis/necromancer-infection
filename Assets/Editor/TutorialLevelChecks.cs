@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
 
 namespace NecromancerInfection.Editor
@@ -16,6 +15,7 @@ namespace NecromancerInfection.Editor
         private static IEnumerator routine;
         private static double next, deadline;
         private static string error;
+        private const string ArenaPath = MainMenu.SurvivalLevelPath;
         static TutorialLevelChecks() => EditorApplication.update += Tick;
 
         public static void CreateAndCheckBatch() { TutorialLevelSetup.Create(); RunBatch(); }
@@ -23,6 +23,18 @@ namespace NecromancerInfection.Editor
         {
             SessionState.SetBool(Key + ".Batch", true);
             Run();
+        }
+
+        public static void RunFullSurvivalBatch()
+        {
+            SessionState.SetBool(Key + ".Batch", true);
+            RunFullSurvival();
+        }
+
+        [MenuItem("Necromancer Infection/Run Full Survival Check")]
+        public static void RunFullSurvival()
+        {
+            Begin(ArenaPath, true);
         }
 
         public static void PreviewBatch()
@@ -37,9 +49,15 @@ namespace NecromancerInfection.Editor
         [MenuItem("Necromancer Infection/Run Tutorial Checks")]
         public static void Run()
         {
+            Begin(TutorialLevelSetup.ScenePath(1), false);
+        }
+
+        private static void Begin(string scenePath, bool fullSurvival)
+        {
             if (EditorApplication.isPlayingOrWillChangePlaymode || EditorSceneManager.GetActiveScene().isDirty)
                 throw new InvalidOperationException("Stop Play Mode and save scene changes first.");
-            EditorSceneManager.OpenScene(TutorialLevelSetup.ScenePath(1));
+            EditorSceneManager.OpenScene(scenePath);
+            SessionState.SetBool(Key + ".FullSurvival", fullSurvival);
             SessionState.SetBool(Key, true);
             EditorApplication.EnterPlaymode();
         }
@@ -49,16 +67,19 @@ namespace NecromancerInfection.Editor
             if (!SessionState.GetBool(Key, false) || !EditorApplication.isPlaying || EditorApplication.isCompiling) return;
             try
             {
+                bool fullSurvival = SessionState.GetBool(Key + ".FullSurvival", false);
                 if (routine == null)
                 {
-                    routine = Checks(); deadline = EditorApplication.timeSinceStartup + 90;
+                    routine = fullSurvival ? FullSurvivalCheck() : Checks();
+                    deadline = EditorApplication.timeSinceStartup + (fullSurvival ? 600 : 90);
                     Application.logMessageReceived += Watch;
                 }
                 Require(error == null, error);
                 Require(EditorApplication.timeSinceStartup < deadline, "Timed out");
                 if (EditorApplication.timeSinceStartup < next) return;
                 if (routine.MoveNext()) next = EditorApplication.timeSinceStartup + Convert.ToDouble(routine.Current);
-                else Finish(true, "Tutorial and survival checks passed: encounters, arena circuit, timer, pause, retry, nine safe waves, resource replenishment, enemy limit and remains cleanup.");
+                else Finish(true, fullSurvival ? "Full Survival01 check passed."
+                    : "Tutorial and survival checks passed: encounters, level selection, arena circuit, timer, pause, retry, nine safe waves, resource replenishment, enemy limit and remains cleanup.");
             }
             catch (Exception exception) { Finish(false, exception.ToString()); }
         }
@@ -77,10 +98,84 @@ namespace NecromancerInfection.Editor
             SessionState.SetBool(Key, false);
             Application.logMessageReceived -= Watch;
             routine = null; error = null; next = 0;
+            if (SessionState.GetBool(Key + ".FullSurvival", false)) Time.captureDeltaTime = 0;
             Time.timeScale = 1;
             if (success) Debug.Log("PASS: " + message); else Debug.LogError(message);
             if (SessionState.GetBool(Key + ".Batch", false)) EditorApplication.Exit(success ? 0 : 1);
             else EditorApplication.ExitPlaymode();
+        }
+
+        private static IEnumerator FullSurvivalCheck()
+        {
+            yield return .1;
+            var arena = Object.FindFirstObjectByType<GameManager>();
+            var waves = arena.GetComponent<SurvivalWaves>();
+            var progression = arena.GetComponent<SoulProgression>();
+            // Advance the normal simulation without modifying the attempt clock or wave schedule.
+            Time.captureDeltaTime = .05f;
+            int observedWaves = 0;
+            bool paused = false;
+            bool clearedFinalWave = false;
+            while (!arena.IsFinished)
+            {
+                if (progression.IsChoosing)
+                {
+                    progression.TryChoose(0);
+                    yield return 0;
+                    continue;
+                }
+                if (waves.WavesSpawned != observedWaves)
+                {
+                    observedWaves = waves.WavesSpawned;
+                    Debug.Log($"Survival01 wave {observedWaves}: {arena.ElapsedSeconds:F2}s, {waves.LivingEnemyCount} enemies");
+                    if (observedWaves < 9) ClearWave(waves);
+                    else Require(arena.ElapsedSeconds >= 850 && arena.ElapsedSeconds < 855
+                        && waves.LivingEnemyCount == 10, "Final wave arrives with all ten defenders");
+                }
+                if (!clearedFinalWave && observedWaves == 9 && arena.ElapsedSeconds >= 880)
+                {
+                    clearedFinalWave = true;
+                    Debug.Log($"Survival01 at 880s: health {arena.Necromancer.Combat.CurrentHealth:F0}, "
+                        + $"{waves.LivingEnemyCount} enemies, upgrade level {progression.Level}");
+                    ClearWave(waves);
+                }
+                if (!paused && arena.ElapsedSeconds >= 450)
+                {
+                    paused = true;
+                    Require(arena.TryPauseGame(), "Pause midway through the full attempt");
+                    double elapsed = arena.ElapsedSeconds;
+                    yield return .5;
+                    Require(arena.ElapsedSeconds == elapsed, "Mid-run pause freezes the clock");
+                    Require(arena.TryResumeGame(), "Resume the full attempt");
+                }
+                yield return 0;
+            }
+            Require(paused && clearedFinalWave && arena.IsVictorious && arena.ElapsedSeconds >= 900
+                && arena.ElapsedSeconds < 900.1, $"Expected victory at 900s after nine waves, got {arena.ElapsedSeconds:F2}s and {observedWaves} waves");
+            Require(arena.TryRestartLevel(), "Retry after the full attempt");
+            while (arena) yield return 0;
+            yield return .1;
+            arena = Object.FindFirstObjectByType<GameManager>();
+            waves = arena.GetComponent<SurvivalWaves>();
+            Require(!arena.IsFinished && arena.ElapsedSeconds < 30 && waves.WavesSpawned == 0
+                && arena.InfectedCount == 0 && arena.GuardsKilled == 0, "Retry resets the full attempt");
+
+            var clock = typeof(GameManager).GetField("attemptStartedAt",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            clock.SetValue(arena, Time.timeAsDouble - 899.5);
+            arena.Necromancer.Combat.TakeDamage(10000);
+            yield return .5;
+            Require(arena.IsDefeated && !arena.IsVictorious && Math.Abs(arena.ElapsedSeconds - 899.5) < .001,
+                "Death before the deadline freezes the defeat result");
+            Require(arena.TryRestartLevel(), "Retry after late defeat");
+            while (arena) yield return 0;
+            Require(!Object.FindFirstObjectByType<GameManager>().IsFinished, "Retry clears late defeat");
+        }
+
+        private static void ClearWave(SurvivalWaves waves)
+        {
+            foreach (var enemy in waves.Reinforcements.GetComponentsInChildren<UnitCombat>())
+                if (enemy.IsAlive) enemy.TakeDamage(10000);
         }
 
         private static void Prepare(GameManager game)
@@ -168,25 +263,12 @@ namespace NecromancerInfection.Editor
                 Require(game.IsVictorious && Time.timeScale == 0, $"Objective completes and freezes time: level={level}, final={game.FinalPhase}, finished={game.IsFinished}, alive={game.Necromancer.Combat.IsAlive}, scale={Time.timeScale}, position={game.Necromancer.transform.position}, farm={game.Farm.transform.position}");
                 Require(Object.FindObjectsByType<GuardCorpse>(FindObjectsSortMode.None).Length == 0, "No knight corpse targets");
                 Require(game.SurvivingUndead == (level == 1 ? 1 : level == 4 ? 3 : 2), "Killed knights and converted bosses join the victory count before time freezes");
-                Require(game.CanAdvance == (level < 4), "Next level availability");
-                if (level < 4) Require(game.TryAdvanceLevel() && !game.TryAdvanceLevel(), "Single next-level request");
-                else Require(game.TryRestartLevel() && !game.TryRestartLevel(), "Single retry request");
+                Require(game.CanAdvance && game.TryAdvanceLevel() && !game.TryAdvanceLevel(), "Single next-level request");
             }
-            yield return .35;
-            var retry = Object.FindFirstObjectByType<GameManager>();
-            Require(retry.Objective.TutorialLevel == 4 && !retry.Objective.EncounterStarted && !retry.IsFinished, "Retry resets encounter");
-            retry.Necromancer.Combat.TakeDamage(10000);
-            Require(retry.IsDefeated && !retry.TryAdvanceLevel(), "Defeat cannot advance");
-            Require(retry.TryRestartLevel(), "Retry defeat");
-            yield return .35;
-            Require(!Object.FindFirstObjectByType<GameManager>().IsFinished, "Retry clears defeat");
-
-            const string arenaPath = "Assets/Scenes/Survival01.unity";
-            SceneManager.LoadSceneAsync(arenaPath, LoadSceneMode.Single);
             yield return .6;
             var arena = Object.FindFirstObjectByType<GameManager>();
-            Require(arena.gameObject.scene.path == arenaPath && arena.Objective.Mode == LevelObjective.ObjectiveMode.Survival
-                && !arena.Farm && !arena.FinalPhase, "Survival starts on its own arena");
+            Require(arena.gameObject.scene.path == ArenaPath && arena.Objective.Mode == LevelObjective.ObjectiveMode.Survival
+                && Time.timeScale == 1 && !arena.Farm && !arena.FinalPhase, "Tutorial victory starts a fresh Survival01 attempt");
             var settings = new SerializedObject(arena.Objective);
             Require(settings.FindProperty("survivalDuration").floatValue == 900, "15-minute default");
 
@@ -253,6 +335,40 @@ namespace NecromancerInfection.Editor
             while (resourceChecks.MoveNext()) yield return resourceChecks.Current;
             var remainsChecks = SurvivalRemainsChecks(Object.FindFirstObjectByType<GameManager>());
             while (remainsChecks.MoveNext()) yield return remainsChecks.Current;
+            var selectionChecks = LevelSelectionChecks();
+            while (selectionChecks.MoveNext()) yield return selectionChecks.Current;
+        }
+
+        private static IEnumerator LevelSelectionChecks()
+        {
+            var game = Object.FindFirstObjectByType<GameManager>();
+            Require(game.TryPauseGame() && game.TryReturnToMenu(), "Survival can return to the main menu");
+            for (int index = 0; index < 5; index++)
+            {
+                yield return .6;
+                var menu = Object.FindFirstObjectByType<MainMenu>();
+                Require(menu && Time.timeScale == 1 && !menu.TryStartLevel(-1) && !menu.TryStartLevel(5),
+                    "The main menu resets time and rejects invalid level selections");
+                Require(menu.TryStartLevel(index) && !menu.TryStartGame(), "The menu loads one level per selection");
+                yield return .6;
+                game = Object.FindFirstObjectByType<GameManager>();
+                string path = index == 4 ? ArenaPath : TutorialLevelSetup.ScenePath(index + 1);
+                Require(game && game.gameObject.scene.path == path && !game.IsFinished && !game.CanAdvance,
+                    "The selected level starts a fresh attempt: " + path);
+                if (index == 3)
+                {
+                    game.Necromancer.Combat.TakeDamage(10000);
+                    Require(game.IsDefeated && !game.TryAdvanceLevel(), "Tutorial defeat cannot unlock the next scene");
+                    Require(game.TryRestartLevel() && !game.TryRestartLevel(), "Single retry request");
+                    yield return .6;
+                    game = Object.FindFirstObjectByType<GameManager>();
+                    Require(game.Objective.TutorialLevel == 4 && !game.Objective.EncounterStarted && !game.IsFinished,
+                        "Retry clears defeat and resets the encounter");
+                }
+                Require(game.TryPauseGame() && game.TryReturnToMenu(), "The selected level can return to the main menu");
+            }
+            yield return .6;
+            Require(Object.FindFirstObjectByType<MainMenu>(), "Survival from level selection returns to the main menu");
         }
 
         private static IEnumerator SurvivalWaveChecks(GameManager arena)
